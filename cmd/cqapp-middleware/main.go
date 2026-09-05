@@ -7,6 +7,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"log/slog"
 	"os"
@@ -22,6 +23,18 @@ import (
 const component = "cqapp-middleware"
 
 func main() {
+	// Container images are distroless, so a compose healthcheck has no shell to
+	// run. The binary checks itself instead.
+	health := flag.Int("health", 0, "check the service on this port and exit")
+	flag.Parse()
+	if *health != 0 {
+		if err := httpx.CheckHealth(*health, 3*time.Second); err != nil {
+			fmt.Fprintf(os.Stderr, "%s: unhealthy: %v\n", component, err)
+			os.Exit(1)
+		}
+		return
+	}
+
 	if err := run(context.Background()); err != nil {
 		// Configuration failures happen before the logger exists.
 		fmt.Fprintf(os.Stderr, "%s: %v\n", component, err)

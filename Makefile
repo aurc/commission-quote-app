@@ -75,6 +75,18 @@ clean: ## Remove build output
 
 # Native dev. One target per cmd/ entry, named after it. The reviewer path is
 # docker compose, added in CQ-08.
+.PHONY: up
+up: ## Run the whole stack in Docker on http://localhost:8080
+	docker compose -f deploy/compose.yaml up --build
+
+.PHONY: down
+down: ## Stop the stack and remove its containers
+	docker compose -f deploy/compose.yaml down --remove-orphans
+
+.PHONY: logs
+logs: ## Follow the stack's logs
+	docker compose -f deploy/compose.yaml logs -f
+
 .PHONY: env
 env: ## Create .env from .env.example if it does not exist
 	@if [ -f .env ]; then \

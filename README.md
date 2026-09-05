@@ -20,8 +20,7 @@ mocked external vendor API.
 > [design canvas](tasks/CQ-07.1/plan.md) first, seventeen artboards on desk and phone, with the
 > [tokens](design/screenshots/design-tokens.png) and their measured contrast ratios.
 
-> Status: the API and the front end work end to end. The single `docker compose up` path lands with
-> CQ-08; native development works today.
+> Status: complete. `docker compose up` runs the whole stack on one origin.
 
 | Built                                                    | Not yet                                         |
 |----------------------------------------------------------|-------------------------------------------------|
@@ -71,7 +70,7 @@ internal/
   cqappmiddleware/  -> cmd/cqapp-middleware
   cqapimock/        -> cmd/cqapi-mock
 web/          React SPA: components, one stylesheet, tokens
-deploy/       nginx, Dockerfiles, docker compose            (CQ-08)
+deploy/       nginx, Dockerfiles, docker compose
 config/       staff.csv and credentials.csv, the identity fixtures
 design/       assumptions, contract, diagram
 tasks/        task register and per task plans
@@ -87,32 +86,76 @@ Go package names cannot, so `cmd/cqapp-bff` pairs with `internal/cqappbff`.
 
 ## Design, Assumptions & Approach
 
-The document [assumptions.md](design/assumptions.md) brings assumptions and design decisions applied to this project.
+[assumptions.md](design/assumptions.md) holds the assumptions and design decisions applied to this
+project, and [contract.md](design/contract.md) holds the detail the code is tested against.
 
-This work follows an AI first approach, and for transparency I break the work into separate tasks,
-with a dedicated commit for the AI planned work and one commit for the finished task.
+This work follows an AI first approach. For transparency I broke it into separate tasks, each with a
+dedicated commit for the planned work and one for the finished task. The task register is at
+[tasks/register.md](tasks/register.md); each task has a `code`, and the PR addressing it quotes that
+`code` at the start of its title.
 
-The task register is at [tasks/register.md](tasks/register.md). Each task has a `code`, and the PRs
-that address those tasks quote the `code` at the beginning of the title.
+## AI usage
 
-The AI tool utilised is Anthropic Claude Code. I have great familiarity with the tool which I use
-both personally and professionally.
+Required by the brief, and worth being specific about rather than general.
 
-A full account of how AI was used lands with CQ-08.
+**The tool.** Anthropic Claude Code, which I use personally and professionally. It wrote most of the
+code in this repository. I directed it, reviewed every change, and made the decisions it raised.
+
+**How the work ran.** One task at a time from the register. For each: a plan committed first, a pause
+while I read it, then the implementation. Every design decision that could reasonably have gone
+another way was argued in the PR body rather than asserted, so the reasoning is reviewable rather
+than buried. The commit history is the evidence, and it is worth more than any claim I make here.
+
+**What I changed.** The honest part. Review is where most of the value was, and the record shows it:
+
+| I raised | It changed |
+|---|---|
+| The scope check was circular: the BFF minted the token and wrote its own scope into it | Entitlement moved behind a port the Middleware owns, so a compromised BFF cannot grant itself access |
+| Staff were hard coded, and the BFF would need the same list | A `config/staff.csv` fixture both read, then credentials split into their own file the Middleware never loads |
+| The Middleware's error messages read like UI copy | Messages state the condition; the BFF owns user wording |
+| Names were inconsistent across `cmd/`, `internal/` and the Makefile | One rule, applied everywhere, and written down so the next name follows it |
+| No TLS support | The gap that mattered was outbound: the vendor `api-key` could have crossed the network in clear, and startup now refuses it |
+| On a phone the result sat below the fold | The form collapses in place |
+| Moving the result above the form made the panel jump | Order fixed, only height changes |
+| Service unavailable had two buttons doing the same thing | One primary action per screen |
+| Only four states had phone artboards | Every state has one |
+
+**What it caught that I did not.** Tests found a whitespace-only subject authenticating, a service
+logging "listening" before it had bound a port, `.env` leaking into `make test`, and a decoder
+accepting a quoted `"1000"` into a numeric field. Each is recorded in the commit that fixed it.
+
+**What I would tell you in the room.** The design canvas was wrong four times before it was right,
+and every one of those was caught by looking at it rather than by reasoning about it. The parts I
+would most want to walk through are the retry rule, where a `500` is deliberately not retried because
+the vendor is not idempotent, and the entitlement seam, because it is the one place the first design
+was wrong in a way that would have passed review.
 
 ## Getting started
 
-Requires Go 1.26 and Node 22 or newer. Nothing else; `golangci-lint` is used if installed and
-skipped if not.
+First time here? [PREREQUISITES.md](PREREQUISITES.md) installs Docker, Go and Node on macOS, step by
+step.
+
+### The whole stack, one command
 
 ```sh
-make env     # writes .env from .env.example, development values only
+docker compose -f deploy/compose.yaml up --build     # or: make up
 ```
 
-`.env` is gitignored. Nothing in `.env.example` is a secret; in a deployed environment every value
-comes from the secret manager through the same `SecretProvider` interface.
+Then open **http://localhost:8080** and sign in as `staff-001` with `demo-password`.
 
-### Running
+That is everything: the front end, the Edge, the BFF, the Middleware and the vendor mock. No `.env`
+needed, since compose carries development defaults. `make down` stops it.
+
+Only the Edge publishes a port. The Middleware and the vendor mock are reachable on the compose
+network and from nowhere else, which is the isolation the design claims.
+
+### Or run the services natively
+
+For working on the code. Needs Go and Node.
+
+```sh
+make env                     # writes .env from .env.example, development values only
+```
 
 Four terminals, or background them:
 
@@ -123,8 +166,11 @@ make run-cqapp-bff           # bff,             port 8081
 make run-cqapp-web           # front end,       port 5173
 ```
 
-Then open http://localhost:5173 and sign in as `staff-001` with `demo-password`. The Vite dev server
-proxies `/api` to the BFF, standing in for the Edge until CQ-08.
+Then open **http://localhost:5173**. The Vite dev server proxies `/api` to the BFF, standing in for
+the Edge.
+
+`.env` is gitignored. Nothing in `.env.example` is a secret; in a deployed environment every value
+comes from the secret manager through the same `SecretProvider` interface.
 
 ### Or drive the API directly
 

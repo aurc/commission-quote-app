@@ -12,8 +12,8 @@ This task makes the whole thing one command, and finishes the submission.
 
 ```
 deploy/
-  Dockerfile.go        one file, any Go service
-  Dockerfile.web       build the SPA, serve it from the Edge
+  Dockerfile.service   one file, any Go service
+  Dockerfile.edge      build the SPA, serve it from nginx
   nginx.conf           single origin, SPA fallback, /api to the BFF
   compose.yaml
 design/canvas/pdf.sh   the canvas as a committed PDF
@@ -103,3 +103,19 @@ Compose is not unit testable, so this task is verified by running it.
 ## Verification
 
 The reviewer path, exactly as written in the README, from a clean checkout in a temporary directory.
+
+## Verification status
+
+`make check` is green and the health flag was verified against a running service: exit 1 with nothing
+listening, 0 while it answers, 1 after it stops.
+
+**The compose stack is written but not verified on this machine.** The Docker daemon here is
+20.10.16, four years old, and answers `docker info` while image pulls make no progress at all: a
+`golang:1.26` pull produced no output in over thirty minutes and no layers on disk. That is a
+connectivity or daemon problem on this machine, not something in the compose file, but it means the
+one command path has not been run end to end and should not be claimed as tested. Updating Docker
+Desktop is the first thing to try.
+
+Everything the compose file relies on has been verified separately: the services run and talk to each
+other natively, the front end works through a proxy in front of the BFF, and the health flag returns
+the exit codes compose depends on.

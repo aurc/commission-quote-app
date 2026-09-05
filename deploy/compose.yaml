@@ -1,0 +1,107 @@
+# The whole stack, one command:
+#
+#   docker compose -f deploy/compose.yaml up --build
+#
+# Values below are development defaults so this works from a clean clone. A
+# .env at the repository root overrides them; see .env.example. Nothing here is
+# a secret, and in a deployed environment every one of them comes from the
+# bank's secret manager through the same SecretProvider interface.
+
+name: cqapp
+
+services:
+  # The only service that publishes a port. The Middleware, the BFF and the
+  # vendor mock are reachable on this network and from nowhere else, which is
+  # the isolation design/assumptions.md claims.
+  edge:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.edge
+    ports:
+      - "8080:8080"
+    depends_on:
+      cqapp-bff:
+        condition: service_healthy
+    restart: unless-stopped
+
+  cqapp-bff:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.service
+      args:
+        SERVICE: cqapp-bff
+    environment:
+      PORT: 8081
+      MIDDLEWARE_BASE_URL: http://cqapp-middleware:8082
+      BFF_MIDDLEWARE_SIGNING_KEY: ${BFF_MIDDLEWARE_SIGNING_KEY:-local-dev-signing-key-not-a-secret-0123456789}
+      SESSION_TTL: ${SESSION_TTL:-30m}
+      # A Secure cookie over http://localhost is honoured by some browsers and
+      # not others, and a reviewer who cannot sign in because of their browser
+      # is a worse outcome than a documented flag. On in a deployed environment.
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    volumes:
+      # Baked into the image as well, so this is only so that editing a fixture
+      # and restarting works without a rebuild.
+      - ../config:/app/config:ro
+    healthcheck:
+      # Distroless has no shell and no curl, so the binary checks itself.
+      test: ["CMD", "/app/service", "-health", "8081"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 2s
+    depends_on:
+      cqapp-middleware:
+        condition: service_healthy
+    restart: unless-stopped
+
+  cqapp-middleware:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.service
+      args:
+        SERVICE: cqapp-middleware
+    environment:
+      PORT: 8082
+      CQAPI_BASE_URL: http://cqapi-mock:8083
+      CQAPI_API_KEY: ${CQAPI_API_KEY:-local-dev-vendor-key-not-a-secret}
+      BFF_MIDDLEWARE_SIGNING_KEY: ${BFF_MIDDLEWARE_SIGNING_KEY:-local-dev-signing-key-not-a-secret-0123456789}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    volumes:
+      - ../config:/app/config:ro
+    healthcheck:
+      test: ["CMD", "/app/service", "-health", "8082"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 2s
+    depends_on:
+      cqapi-mock:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # The vendor stand in. Not ours, and the first thing deleted when the real
+  # Commission Quote API exists.
+  cqapi-mock:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.service
+      args:
+        SERVICE: cqapi-mock
+    environment:
+      PORT: 8083
+      CQAPI_API_KEY: ${CQAPI_API_KEY:-local-dev-vendor-key-not-a-secret}
+      # The challenge requires the vendor to misbehave. Set both to 0 to see the
+      # application without the noise.
+      CQAPI_FAILURE_RATE: ${CQAPI_FAILURE_RATE:-0.15}
+      CQAPI_SLOW_RATE: ${CQAPI_SLOW_RATE:-0.10}
+      CQAPI_RANDOM_SEED: ${CQAPI_RANDOM_SEED:-0}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    healthcheck:
+      test: ["CMD", "/app/service", "-health", "8083"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 2s
+    restart: unless-stopped
