@@ -20,7 +20,7 @@ changes anything, an update to the tokens in `contract.md`.
 
 ## Artboards
 
-Nine, covering every state `contract.md` sections 5 and 10 specify. The error states are the point:
+Thirteen, covering every state `contract.md` sections 5 and 10 specify. The error states are the point:
 they are the ones a design usually leaves until last and the brief grades explicitly.
 
 | # | Artboard | Shows |
@@ -34,6 +34,7 @@ they are the ones a design usually leaves until last and the brief grades explic
 | 7 | Quote result | `quoteId`, `commissionRate` as a percentage, `totalCommission` as AUD |
 | 8 | Not entitled | The `403`, in words, with the correlation id |
 | 9 | Service unavailable | The `502`, `503` and `504` family, and what a user can do about it |
+| 10-13 | Phone, 390 wide | Sign in, quote form, invalid and result, the four screens whose layout changes |
 
 ## Constraints the canvas has to respect
 

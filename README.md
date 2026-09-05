@@ -3,12 +3,25 @@
 Full-stack take-home: a web app that captures loan details and returns a commission quote from a
 mocked external vendor API.
 
-> Status: implementation in progress. Two of the four services exist. The single `docker compose up`
-> path lands with CQ-08; native development works today.
+<p align="center">
+  <img src="design/screenshots/quote-result.png" alt="The quote form with a generated quote: a 1.80% commission rate and a total of $4,500.00" width="720">
+</p>
+
+<p align="center">
+  <img src="design/screenshots/validation-errors.png" alt="The quote form showing every invalid field at once, each marked inline with an icon and a message" width="352">
+  <img src="design/screenshots/phone-result.png" alt="The same quote result on a phone, with the figures stacked in one column" width="167">
+</p>
+
+> **These are design mockups, not the running application.** The API works end to end today; the
+> front end is CQ-07 and these screenshots are replaced with the real thing when it ships. The full
+> canvas, thirteen artboards covering every state, is [in the design handoff](tasks/CQ-07.1/plan.md).
+
+> Status: implementation in progress. The API is complete; the front end is next. The single
+> `docker compose up` path lands with CQ-08; native development works today.
 
 | Built | Not yet |
 |---|---|
-| Vendor mock, Middleware, resilience, BFF | Web front end (CQ-07), Edge and compose (CQ-08) |
+| Vendor mock, Middleware, resilience, BFF, design handoff | Web front end (CQ-07), Edge and compose (CQ-08) |
 
 ## Documents
 
@@ -19,6 +32,7 @@ mocked external vendor API.
 | [register.md](tasks/register.md) | Task register, one PR per task |
 | [cqapi.openapi.yaml](api/cqapi.openapi.yaml) | The vendor's published contract |
 | [middleware.openapi.yaml](api/middleware.openapi.yaml) | Our published contract |
+| [design/canvas/](design/canvas/) | Design canvas sources, one artboard per state |
 
 `assumptions.md` is the *why*. `contract.md` is the *what*, and is what the code is tested against.
 

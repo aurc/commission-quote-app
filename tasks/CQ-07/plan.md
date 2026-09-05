@@ -70,6 +70,17 @@ operator find the request.
 `totalCommission` as AUD via `Intl.NumberFormat`. The numbers themselves are the vendor's and are
 displayed as received. The front end formats; it does not calculate.
 
+### Responsive, as one stylesheet
+
+The phone artboards in CQ-07.1 are the narrow end of one design, not a second one. Three things
+change and nothing else does: the result panel stacks to one column, padding tightens, and the top
+bar drops the staff name, which moves into the form so who you are signed in as stays on screen.
+
+Implemented with media queries over the same markup. Two layouts would mean two things to keep in
+step, which is the failure mode this repository has avoided everywhere else.
+
+Controls stay 44px or taller, which is why the desk design uses that height too.
+
 ### Accessibility from the start, not as polish
 
 Tiered as depth in `assumptions.md`, but most of it is free when done from the beginning and
@@ -108,6 +119,7 @@ run the two independently.
 | Formatting | `0.0180` renders `1.80%`, `4500` renders as AUD, and neither is recomputed |
 | Session | Restored on load; a `401` returns to sign in |
 | Accessibility | Inputs have labels, invalid fields are marked, the error summary takes focus |
+| Responsive | The result grid stacks below the breakpoint, nothing overflows at 390px |
 
 ## Verification
 

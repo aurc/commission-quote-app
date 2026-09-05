@@ -17,7 +17,7 @@
 </helmet>
 
 <div style="min-height: 100%; display: flex; flex-direction: column;">
-  <header style="height: 64px; padding: 0 32px; background: #870e40; display: flex; align-items: center; justify-content: space-between;">
+  <header style="height: 64px; padding: 0 16px; background: #870e40; display: flex; align-items: center; justify-content: space-between;">
       <div style="display: flex; align-items: center; gap: 12px;">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="1.75" stroke-linecap="round" aria-hidden="true">
         <circle cx="7.5" cy="7.5" r="3.25"></circle>
@@ -26,14 +26,15 @@
       </svg>
         <span style="font-size: 17px; font-weight: 600; color: #ffffff;">Commission Quote</span>
       </div>
-      <div style="display: flex; align-items: center; gap: 16px;"><span style="font-size: 14px; color: rgba(255, 255, 255, 0.85);">Aurelio Calegari</span><button style="height: 36px; padding: 0 14px; border: 1px solid rgba(255, 255, 255, 0.4); border-radius: 6px; background: transparent; color: #ffffff; font: 500 14px 'IBM Plex Sans', sans-serif;">Sign out</button></div>
+      <div style="display: flex; align-items: center; gap: 16px;"><button style="height: 36px; padding: 0 14px; border: 1px solid rgba(255, 255, 255, 0.4); border-radius: 6px; background: transparent; color: #ffffff; font: 500 14px 'IBM Plex Sans', sans-serif;">Sign out</button></div>
   </header>
-  <main style="flex-grow: 1; padding: 40px 32px 48px; display: flex; justify-content: center;">
-    <div style="width: 100%; max-width: 560px; display: flex; flex-direction: column; gap: 20px;">
-      <div style="background: #ffffff; border: 1px solid #dee2e6; border-radius: 8px; padding: 28px;">
-        <h1 style="margin: 0 0 4px; font-size: 24px; font-weight: 600; line-height: 1.25;">Generate a commission quote</h1>
+  <main style="flex-grow: 1; padding: 20px 16px 32px; display: flex; justify-content: center;">
+    <div style="width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 20px;">
+      <div style="background: #ffffff; border: 1px solid #dee2e6; border-radius: 8px; padding: 20px;">
+        <h1 style="margin: 0 0 4px; font-size: 20px; font-weight: 600; line-height: 1.25;">Generate a commission quote</h1>
         <p style="margin: 0 0 20px; font-size: 15px; line-height: 1.5; color: #68696b;">Enter the loan details. The quote is advisory and is not binding.</p>
         <div style="display: flex; flex-direction: column; gap: 18px;">
+        <div style="font-size: 13px; color: #68696b; margin: -8px 0 4px;">Signed in as <span style="color: #212529; font-weight: 500;">Aurelio Calegari</span></div>
         <div>
           <label style="display: block; font: 500 14px 'IBM Plex Sans', sans-serif; color: #212529; margin-bottom: 6px;">Loan amount</label>
           <div style="position: relative;"><span style="position: absolute; left: 12px; top: 11px; font-size: 16px; color: #68696b;">$</span><input value="250000.00" style="width: 100%; height: 44px; padding: 0 12px; border: 1px solid #dee2e6; border-radius: 6px; background: #ffffff; color: #212529; font: 400 16px 'IBM Plex Sans', sans-serif; padding-left: 30px;"></div>
@@ -56,6 +57,29 @@
         </div>
           <button style="width: 100%; height: 48px; border: none; border-radius: 6px; background: #870e40; color: #ffffff; font: 600 16px 'IBM Plex Sans', sans-serif;">Generate Quote</button>
         </div>
+      </div>
+      <div style="background: #f6f2f5; border: 1px solid #dee2e6; border-radius: 8px; padding: 20px;">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 18px;">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="#870e40" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 9.5 7 13l7.5-8"></path></svg>
+          <h2 style="margin: 0; font-size: 18px; font-weight: 600;">Quote generated</h2>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(1, minmax(0, 1fr)); gap: 18px;">
+          <div>
+            <div style="font-size: 13px; color: #68696b; margin-bottom: 4px;">Commission rate</div>
+            <div style="font-size: 26px; font-weight: 600; color: #870e40; line-height: 1.1;">1.80%</div>
+          </div>
+          <div>
+            <div style="font-size: 13px; color: #68696b; margin-bottom: 4px;">Total commission</div>
+            <div style="font-size: 26px; font-weight: 600; color: #870e40; line-height: 1.1;">$4,500.00</div>
+          </div>
+        </div>
+        <div style="margin-top: 18px; padding-top: 16px; border-top: 1px solid #dee2e6;">
+          <div style="font-size: 13px; color: #68696b; margin-bottom: 4px;">Quote ID</div>
+          <div style="font: 400 14px 'IBM Plex Mono', monospace; color: #212529; word-break: break-all;">7c4677e6-b95b-4ee8-bcf5-c17bbda9d63a</div>
+        </div>
+        <p style="margin: 16px 0 0; font-size: 13px; line-height: 1.5; color: #68696b;">
+          Advisory only and not binding. Nothing is stored, so generate a new quote rather than returning to this one.
+        </p>
       </div>
     </div>
   </main>

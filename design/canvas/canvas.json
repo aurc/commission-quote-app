@@ -1,39 +1,148 @@
 {
   "artboards": [
-    { "file": "Tokens.dc.html", "x": 0, "y": 0, "w": 1080, "h": 780, "title": "Design tokens" },
-
-    { "file": "SignIn.dc.html", "x": 0, "y": 900, "w": 760, "h": 560, "title": "Sign in" },
-    { "file": "SignInRefused.dc.html", "x": 840, "y": 900, "w": 760, "h": 620, "title": "Sign in refused" },
-
-    { "file": "QuoteForm.dc.html", "x": 0, "y": 1640, "w": 880, "h": 700, "title": "Quote form, idle" },
-    { "file": "QuoteInvalid.dc.html", "x": 960, "y": 1640, "w": 880, "h": 940, "title": "Quote form, invalid" },
-    { "file": "QuoteSubmitting.dc.html", "x": 1920, "y": 1640, "w": 880, "h": 740, "title": "Quote form, submitting" },
-
-    { "file": "Main.dc.html", "x": 0, "y": 2700, "w": 880, "h": 1000, "title": "Quote result" },
-    { "file": "NotEntitled.dc.html", "x": 960, "y": 2700, "w": 880, "h": 480, "title": "Not entitled" },
-    { "file": "Unavailable.dc.html", "x": 1920, "y": 2700, "w": 880, "h": 960, "title": "Service unavailable" }
+    {
+      "file": "Tokens.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 1080,
+      "h": 780,
+      "title": "Design tokens"
+    },
+    {
+      "file": "SignIn.dc.html",
+      "x": 0,
+      "y": 900,
+      "w": 760,
+      "h": 560,
+      "title": "Sign in"
+    },
+    {
+      "file": "SignInRefused.dc.html",
+      "x": 840,
+      "y": 900,
+      "w": 760,
+      "h": 620,
+      "title": "Sign in refused"
+    },
+    {
+      "file": "QuoteForm.dc.html",
+      "x": 0,
+      "y": 1640,
+      "w": 880,
+      "h": 700,
+      "title": "Quote form, idle"
+    },
+    {
+      "file": "QuoteInvalid.dc.html",
+      "x": 960,
+      "y": 1640,
+      "w": 880,
+      "h": 940,
+      "title": "Quote form, invalid"
+    },
+    {
+      "file": "QuoteSubmitting.dc.html",
+      "x": 1920,
+      "y": 1640,
+      "w": 880,
+      "h": 740,
+      "title": "Quote form, submitting"
+    },
+    {
+      "file": "Main.dc.html",
+      "x": 0,
+      "y": 2700,
+      "w": 880,
+      "h": 1000,
+      "title": "Quote result"
+    },
+    {
+      "file": "NotEntitled.dc.html",
+      "x": 960,
+      "y": 2700,
+      "w": 880,
+      "h": 480,
+      "title": "Not entitled"
+    },
+    {
+      "file": "Unavailable.dc.html",
+      "x": 1920,
+      "y": 2700,
+      "w": 880,
+      "h": 960,
+      "title": "Service unavailable"
+    },
+    {
+      "file": "PhoneSignIn.dc.html",
+      "x": 0,
+      "y": 3860,
+      "w": 390,
+      "h": 844,
+      "title": "Phone, sign in"
+    },
+    {
+      "file": "PhoneQuoteForm.dc.html",
+      "x": 470,
+      "y": 3860,
+      "w": 390,
+      "h": 844,
+      "title": "Phone, quote form"
+    },
+    {
+      "file": "PhoneQuoteInvalid.dc.html",
+      "x": 940,
+      "y": 3860,
+      "w": 390,
+      "h": 980,
+      "title": "Phone, invalid"
+    },
+    {
+      "file": "PhoneResult.dc.html",
+      "x": 1410,
+      "y": 3860,
+      "w": 390,
+      "h": 980,
+      "title": "Phone, result"
+    }
   ],
   "annotations": [
     {
       "id": "palette-source",
-      "x": 1200, "y": 0, "w": 320,
+      "x": 1200,
+      "y": 0,
+      "w": 320,
       "text": "Palette measured from the stylesheet published at bendigobank.com.au, by counting which CSS properties each value serves.\n\nTwo deliberate departures, both for accessibility:\n\nTheir muted grey #808184 is 3.90:1 on white, under the 4.5:1 AA floor for body text. Darkened to #68696b at 5.50:1.\n\n#de313b is the focus ring, not the error colour. It is the brand's action red, and one red for both the button you press and the message saying you got it wrong is a poor signal."
     },
     {
       "id": "no-mark",
-      "x": 1200, "y": 420, "w": 320,
+      "x": 1200,
+      "y": 420,
+      "w": 320,
       "text": "No Bendigo mark, name or tagline anywhere. Palette only, with our own wordmark.\n\nThe reasoning is in Branding in design/assumptions.md: it is a registered trade mark and a copyright work, this repository is public, and a branded interface implies an endorsement that does not exist."
     },
     {
       "id": "colour-not-alone",
-      "x": 2880, "y": 1640, "w": 320,
+      "x": 2880,
+      "y": 1640,
+      "w": 320,
       "text": "Colour is never the only signal.\n\nAn invalid field carries an icon, a message and a heavier border, and the summary at the top of the card lists every failure at once with a link to each field.\n\nThe Middleware returns all failures together, so the form shows them together. It never reveals one at a time."
     },
     {
       "id": "two-error-tones",
-      "x": 2880, "y": 2700, "w": 320,
+      "x": 2880,
+      "y": 2700,
+      "w": 320,
       "text": "Two tones for two kinds of failure.\n\nDanger red #b20838 when the user can fix it: a wrong password, an out of range amount.\n\nPrimary maroon when they cannot: no entitlement, or the vendor being down. Shouting in red at someone about a problem they did not cause and cannot solve is the wrong tone.\n\nEvery failure shows the correlation id. It is the only thing a user can quote that lets an operator find their request."
+    },
+    {
+      "id": "phone-layout",
+      "x": 1880,
+      "y": 3860,
+      "w": 320,
+      "text": "Phones, 390 wide.\n\nThree things change and nothing else does: the result panel stacks to one column, padding tightens, and the top bar drops the staff name because it has room for the wordmark and one control, and Sign out is the one you cannot reach any other way. The name moves into the form instead, so who you are signed in as is still on screen.\n\nCQ-07 implements this as one responsive stylesheet, not two layouts. These artboards are the narrow end of the same design.\n\nControls stay 44px or taller, which is the reason the field height was set there on the desk too."
     }
   ],
-  "launch": { "view": "canvas" }
+  "launch": {
+    "view": "canvas"
+  }
 }
