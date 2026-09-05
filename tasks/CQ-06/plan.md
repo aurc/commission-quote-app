@@ -25,27 +25,45 @@ internal/bff/
 
 ## Design
 
-### Sign in, and being honest about it
+### Sign in with a real password flow
 
-The fixture has no passwords, and it should not gain any. A fake password is security theatre: it
-looks like a control, protects nothing, and invites a reviewer to wonder whether it was meant
-seriously.
+The UI signs in with a credential and the API verifies it properly. No fake control, no bypass.
 
-`POST /api/session` takes a `staffId` that exists in `config/staff.csv` and issues a session. No
-credential. This stands in for the OIDC authorisation code flow, and the consequence is stated
-plainly rather than buried: **anyone who can reach the BFF can become anyone in the fixture.** That
-is acceptable only because `assumptions.md` 3.3 places the system inside the bank's perimeter and
-this is an MVP whose identity provider is explicitly not built.
+`POST /api/session` takes `staffId` and `password`. `GET /api/session` returns the current staff
+member or `401`. `DELETE /api/session` signs out.
 
-`GET /api/session` returns the current staff member or `401`. `DELETE /api/session` signs out.
+**Credentials live in their own file, separate from `config/staff.csv`.**
 
-The alternative, a shared development password, is one env var away if you would rather the demo not
-be open. I do not recommend it: it adds a control that would have to be explained as fake.
+```
+config/staff.csv        id, name, scopes      identity and entitlement
+config/credentials.csv  id, passwordHash      credentials, BFF only
+```
+
+The Middleware reads the first and must never load the second. It has no business holding password
+material it cannot use, and in production these are unambiguously different systems: the IdP holds
+credentials and the Middleware never sees them. Putting a hash in the file the Middleware already
+reads would put it in the Middleware's memory for no reason.
+
+Two files reintroduce the drift risk CQ-04 removed, so the BFF cross checks at startup: a credential
+naming a staff id that does not exist is a startup failure. A staff member without a credential
+simply cannot sign in, which is a legitimate state.
+
+**Passwords are bcrypt hashed, including in the fixture.** A committed plaintext password, or a fast
+hash like SHA-256, would be wrong in a way that is worth not demonstrating: the fixture is the
+example someone copies. `bcrypt.CompareHashAndPassword` is also constant time, so the comparison
+does not leak.
+
+**Failure is uniform.** An unknown staff id and a wrong password return the same response, and an
+unknown id still costs a bcrypt comparison against a dummy hash, so response timing does not reveal
+who exists. Attempts are logged with the staff id and never the password.
+
+Not built, and stated: rate limiting and lockout after repeated failures. They belong here in
+production, and `assumptions.md` already places rate limiting in the production column.
 
 ### The same fixture, a different column
 
 `AuthProvider` reads `config/staff.csv` through `staffdir`, taking `id` and `name` where the
-Middleware takes `id` and `scopes`. That is the point of CQ-04's fixture work: sign in and
+Middleware takes `id` and `scopes`, and reads the password hash from `config/credentials.csv`. That is the point of CQ-04's fixture work: sign in and
 authorisation cannot disagree about who exists.
 
 The BFF does **not** read the `scopes` column to decide anything. It requests `quote:generate` in the
@@ -66,8 +84,8 @@ covers the only state changing endpoint. A token is not added; the reasoning is 
 absence reads as a decision rather than an oversight.
 
 Sessions are in memory, so a BFF restart signs everyone out and a second replica would not share
-them. That is a real limitation of the MVP and belongs in the scope table's production column, which
-already names a distributed session store.
+them. Now recorded in `assumptions.md` rather than left as an implementation detail, because it is a
+property of the deployment, not of the code.
 
 ### Not a reverse proxy
 
@@ -101,7 +119,11 @@ in `contract.md` instead. Worth revisiting the moment anything else calls it.
 
 | Area | Cases |
 |---|---|
-| Session | Sign in with a known id, an unknown id, a missing body; cookie flags; sign out invalidates; expiry |
+| Sign in | Correct password succeeds; wrong password, unknown staff id, missing fields and an empty password all fail identically |
+| Enumeration | An unknown staff id and a wrong password are indistinguishable in status, body and shape |
+| Credentials | A hash is never returned or logged; the password is never logged; the fixture holds no plaintext |
+| Startup | A credential naming an unknown staff id fails at startup |
+| Session | Cookie flags; sign out invalidates; expiry; a stale cookie is rejected |
 | Session cookie | The session value never appears in a response body or a log |
 | Token exchange | Claims match `contract.md` section 7; a request without a cookie never reaches the Middleware |
 | Wording | Every code maps to user copy; an unknown code maps to the `INTERNAL` wording; no API phrasing survives |
@@ -111,7 +133,8 @@ in `contract.md` instead. Worth revisiting the moment anything else calls it.
 
 ## Verification
 
-`make check` green. Then the whole stack by hand without `make token`: sign in, request a quote,
-sign out, and confirm a quote is refused afterwards. Confirm an entitled and an unentitled staff
+`make check` green. Then the whole stack by hand without `make token`: sign in with the password,
+request a quote, sign out, and confirm a quote is refused afterwards. Confirm a wrong password is
+refused and is indistinguishable from an unknown user. Confirm an entitled and an unentitled staff
 member differ, and that the unentitled one sees words rather than `caller is not entitled to the
 required scope`.

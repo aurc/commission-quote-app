@@ -24,7 +24,14 @@ authentication without which no access should be allowed.
 4. [Assumption] The Staff member will have the pre-configured access to request a quote. That access
    is a grant held by the Middleware, not a claim asserted by the caller. See *Authorisation is not
    the same as authentication* in [contract.md](contract.md) section 7.
-5. [Assumption] No persistence is required on the CQApp. It's a stateless application.
+5. [Assumption] No persistence is required on the CQApp. No quote, and no business data, is stored.
+
+    The one exception is the staff session, which the BFF holds in memory. This is deliberate and
+    has consequences worth stating rather than discovering: a BFF restart signs everyone out, and a
+    second replica would not recognise the first's sessions, so the MVP runs one. Production replaces
+    it with a distributed session store, already named in the scope table below. The application
+    remains stateless in the sense that matters here, that losing a process loses nothing but a
+    session someone can recreate by signing in again.
 6. [Assumption] Single currency (AUD). No localisation.
 7. [Assumption] A quote is advisory and not binding. No quote lifecycle, no expiry, no audit store in the MVP.
 

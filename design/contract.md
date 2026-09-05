@@ -319,10 +319,39 @@ Two separate concerns, never conflated.
 
 ### Staff to BFF
 
-Cookie `cq_session`, `HttpOnly`, `Secure`, `SameSite=Lax`, `Path=/`. Value is an opaque random 256
-bit identifier. `AuthProvider` resolves it against an in memory store seeded with one fake staff
-user. `POST /api/session` signs in, `DELETE /api/session` signs out, `GET /api/session` returns the
-current user or `401`.
+Cookie `cq_session`, `HttpOnly`, `SameSite=Lax`, `Path=/`, and `Secure` outside local development.
+Value is an opaque random 256 bit identifier resolved against an in memory store.
+
+| Endpoint | Does |
+|---|---|
+| `POST /api/session` | Signs in with `staffId` and `password` |
+| `GET /api/session` | Returns the signed in staff member, or `401` |
+| `DELETE /api/session` | Signs out and invalidates the session |
+
+Credentials are a separate fixture from identity:
+
+| File | Holds | Read by |
+|---|---|---|
+| `config/staff.csv` | `id`, `name`, `scopes` | BFF and Middleware |
+| `config/credentials.csv` | `id`, `passwordHash` | BFF only |
+
+The Middleware must never load password material. It cannot use it, and in production the IdP holds
+credentials and the Middleware never sees them. The BFF cross checks the two at startup: a credential
+naming an unknown staff id is a startup failure. A staff member without a credential cannot sign in,
+which is a legitimate state.
+
+Passwords are bcrypt hashed, in the fixture as well as anywhere else. A committed plaintext password
+or a fast hash would be wrong in a way worth not demonstrating, since a fixture is what gets copied.
+
+Sign in failure is uniform: an unknown staff id and a wrong password return the same status and body,
+and an unknown id still costs a bcrypt comparison against a dummy hash so timing does not reveal who
+exists. Rate limiting and lockout are production concerns and are not built.
+
+`Secure` is configurable because a `Secure` cookie over `http://localhost` is honoured by some
+browsers and not others; it defaults on and the local compose stack turns it off.
+
+`SameSite=Lax` is the CSRF control. It withholds the cookie from cross site POSTs entirely, which
+covers the only state changing endpoint, so no separate token is issued.
 
 ### BFF to Middleware
 
@@ -484,6 +513,9 @@ accepts a malformed endpoint and silently drops every trace.
 | `MIDDLEWARE_BASE_URL`        | bff                   | `http://cqapp-middleware:8082` | no   |
 | `BFF_MIDDLEWARE_SIGNING_KEY` | bff, middleware       | none                       | yes      |
 | `STAFF_FILE`                 | middleware, bff       | `config/staff.csv`         | no       |
+| `CREDENTIALS_FILE`           | bff                   | `config/credentials.csv`   | no       |
+| `SESSION_TTL`                | bff                   | `30m`                      | no       |
+| `SESSION_COOKIE_SECURE`      | bff                   | `true`                     | no       |
 | `PORT`                       | all                   | per component below        | no       |
 | `LOG_LEVEL`                  | all                   | `info`                     | no       |
 | `OTEL_EXPORTER_OTLP_ENDPOINT`| all                   | unset                      | no       |
