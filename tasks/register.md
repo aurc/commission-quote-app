@@ -10,7 +10,7 @@ Statuses: `todo`, `in progress`, `done`.
 | CQ-02 | Scaffold and platform       | done   | `go.mod`, `Makefile`, `internal/platform`              |
 | CQ-03 | Mocked vendor CQAPI         | done   | `cmd/cqapi-mock`, `api/cqapi.openapi.yaml`                  |
 | CQ-04 | Middleware core and OpenAPI | done   | `cmd/cqapp-middleware`, `api/middleware.openapi.yaml`        |
-| CQ-05 | Middleware resilience       | todo   | timeouts, retries, circuit breaker                     |
+| CQ-05 | Middleware resilience       | wip    | timeouts, retries, circuit breaker                     |
 | CQ-06 | BFF and AuthProvider        | todo   | `cmd/cqapp-bff`                                              |
 | CQ-07 | Web front end               | todo   | `web/`                                                 |
 | CQ-08 | Edge, compose, README       | todo   | `deploy/`, run instructions, AI transparency           |
