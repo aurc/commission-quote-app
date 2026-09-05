@@ -116,6 +116,7 @@ run the two independently.
 | Drift | The published contract's bounds match `validation.ts` |
 | States | Idle, loading, result and error each render, and only one at a time |
 | Collapse | Submitting collapses the form in place, above the result and never below it; Edit reopens it with the values intact |
+| One action | Every screen renders exactly one primary control besides sign out; a service failure adds no second retry |
 | Field errors | `details` map to the right fields; an unknown code still shows something |
 | Formatting | `0.0180` renders `1.80%`, `4500` renders as AUD, and neither is recomputed |
 | Session | Restored on load; a `401` returns to sign in |

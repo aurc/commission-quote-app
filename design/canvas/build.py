@@ -155,7 +155,7 @@ def signed_in_as(s, staff):
             f'<span style="color: #212529; font-weight: 500;">{staff}</span></div>\n')
 
 
-def form(s, staff, amount="250000.00", term="240", errors=None, submitting=False, summary=None):
+def form(s, staff, amount="250000.00", term="240", errors=None, submitting=False, summary=None, alert=None):
     errors = errors or {}
     parts = [f'''      <div style="{card(s)}">
         <h1 style="margin: 0 0 4px; font-size: {s.h1}px; font-weight: 600; line-height: 1.25;">Generate a commission quote</h1>
@@ -164,6 +164,11 @@ def form(s, staff, amount="250000.00", term="240", errors=None, submitting=False
     header = signed_in_as(s, staff)
     if header:
         parts.append(header.rstrip('\n'))
+    # Anything that went wrong is a banner inside this card, above the fields:
+    # a refused sign in, failed validation and an unreachable vendor all look
+    # the same, and the card keeps exactly one button.
+    if alert:
+        parts.append(alert)
     if summary:
         parts.append(summary)
     parts.append(field("Loan amount", amount, hint="Between 1,000.00 and 5,000,000.00, in dollars and cents.",
@@ -303,22 +308,26 @@ def not_entitled(s):
       </div>'''
 
 
-def unavailable(s):
-    return f'''      <div style="{card(s)}">
-        <div style="display: flex; gap: 12px;">
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#870e40" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="flex: none; margin-top: 2px;" aria-hidden="true">
-            <circle cx="10" cy="10" r="7.5"></circle><path d="M10 6v4.5l3 1.8"></path>
-          </svg>
-          <div style="flex-grow: 1;">
-            <h1 style="margin: 0 0 6px; font-size: {s.h1}px; font-weight: 600; line-height: 1.3;">Quotes are unavailable right now. Try again shortly.</h1>
-            <p style="margin: 0 0 18px; font-size: 15px; line-height: 1.5; color: #68696b;">
-              The quote service did not respond. No quote was created, so it is safe to try again.
-            </p>
-            <button style="height: 44px; padding: 0 20px; border: 1px solid #870e40; border-radius: 6px; background: #ffffff; color: #870e40; font: 600 15px 'IBM Plex Sans', sans-serif;">Try again</button>
-            {corr("71ce95ac0b87a1a8")}
-          </div>
-        </div>
-      </div>'''
+def unavailable_banner():
+    """A vendor failure, as a banner inside the form.
+
+    It carries no button. The form already has one, and Generate Quote IS the
+    retry: a Try again beside it would be two controls doing the same thing,
+    with nothing to tell a user which one to press.
+
+    Primary maroon rather than danger red, per the two tones rule: this is not
+    something the user did or can fix.
+    """
+    return f'''          <div style="display: flex; gap: 10px; padding: 14px 16px; border: 1px solid #dee2e6; border-radius: 6px; background: #f6f2f5;">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#870e40" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="flex: none; margin-top: 1px;" aria-hidden="true">
+              <circle cx="10" cy="10" r="7.5"></circle><path d="M10 6v4.5l3 1.8"></path>
+            </svg>
+            <div>
+              <div style="font-size: 15px; font-weight: 500; color: #212529; line-height: 1.4;">Quotes are unavailable right now. Try again shortly.</div>
+              <div style="font-size: 13px; color: #68696b; margin-top: 4px; line-height: 1.45;">The quote service did not respond. No quote was created, so nothing was duplicated by trying again.</div>
+              {corr("71ce95ac0b87a1a8", bordered=False)}
+            </div>
+          </div>'''
 
 
 STAFF = "Aurelio Calegari"
@@ -338,7 +347,7 @@ def build(mobile):
         # The form collapses in place. It does not move: see collapsed_form.
         'Result': page(s, collapsed_form(s, STAFF) + '\n' + result_panel(s), staff=STAFF, width=w),
         'NotEntitled': page(s, not_entitled(s), staff="Sam Ellis", width=w),
-        'Unavailable': page(s, form(s, STAFF) + '\n' + unavailable(s), staff=STAFF, width=w),
+        'Unavailable': page(s, form(s, STAFF, alert=unavailable_banner()), staff=STAFF, width=w),
     }
 
 

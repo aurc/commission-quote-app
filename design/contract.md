@@ -550,6 +550,7 @@ The brief specifies parts of the UI literally, so they are pinned here rather th
 | Failure | The `message` from the BFF's error envelope, shown as an error, with `correlationId` available |
 | On success | The form collapses in place to the values it was submitted with; the result appears below it |
 | Field errors | `details` mapped back to the field that failed, shown inline |
+| One action | Exactly one primary control per screen, besides the persistent sign out |
 
 Presentation: `commissionRate` is shown as a percentage to two decimal places (`0.0180` renders as
 `1.80%`), `totalCommission` as AUD currency. The FE formats for display only; it never recomputes a
@@ -587,6 +588,13 @@ poor signal. `--cq-danger` is the deeper `#b20838`, which also measures better, 
 **Colour is never the only signal.** An invalid field carries an icon, a message and `aria-invalid`,
 not just a red border. A red forward brand makes this more important, not less, because the palette
 offers less contrast between "act here" and "this is wrong" than a blue one would.
+
+**Failures are banners inside the form card, above the fields.** A refused sign in, failed validation
+and an unreachable vendor all take the same shape, and the card keeps exactly one button.
+
+The service failure carries no retry control of its own. `Generate Quote` already is the retry, and
+two controls doing the same thing leave a user deciding which one to press. `403 FORBIDDEN` is the
+exception and shows no form at all, because there is nothing for a retry to achieve.
 
 **The form collapses in place once submitted.** A full form above the result pushes the answer off a
 phone screen, and the form's work is done at submit, so it shrinks from around 560px to around 165px
