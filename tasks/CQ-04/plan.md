@@ -17,7 +17,8 @@ Contract in `design/contract.md` sections 3 to 7. Published as `api/middleware.o
 api/middleware.openapi.yaml   our published contract
 cmd/middleware/main.go
 internal/middleware/
-  auth.go        bearer verification, scope check
+  auth.go        bearer verification, algorithm pinning
+  entitle.go     Entitlements port and the in memory grant table
   validate.go    authoritative validation
   vendor.go      CQAPI client, api-key injection, error translation
   handler.go     POST /v1/quotes
@@ -44,19 +45,30 @@ reaches a boundary, and boundaries are `int64` cents or ten thousandths. The Mid
 same parsing the vendor uses, and importing the vendor mock into our own service would couple us to
 a component meant to be deleted when the real vendor arrives.
 
-### Claim verification
+### Claim verification and entitlement
 
-Bearer token per `contract.md` section 7. Verify signature, `iss`, `aud`, `exp`, then require the
-`quote:generate` scope.
+Per `contract.md` section 7, which was rewritten for this task after the scope check turned out to be
+circular.
 
-- missing, malformed, expired or badly signed: `401 UNAUTHENTICATED`
-- valid token without the scope: `403 FORBIDDEN`
+Verify the signature, `iss`, `aud` and `exp`, with `alg` pinned to HS256 so a token cannot choose its
+own verification. Then, separately, decide entitlement.
+
+The `scope` claim is the caller asking to do something, not a grant. The BFF writes it and the BFF is
+the party being checked, so trusting it would mean the BFF decides its own authority and the `403`
+branch could never be reached. The Middleware owns the decision through an `Entitlements` port,
+seeded in the MVP with one entitled and one unentitled staff member so `403` is a real path.
+
+- missing, malformed, expired, badly signed, wrong `alg`, `iss` or `aud`: `401 UNAUTHENTICATED`
+- valid token, scope not requested, or requested but not granted: `403 FORBIDDEN`
 
 That split matters. A `401` tells the front end to send the user back to sign in; a `403` says
 signing in again will not help.
 
 Small clock skew leeway, since `exp` is 60 seconds and two containers need not agree to the
-millisecond. The leeway is configurable and defaults to a few seconds.
+millisecond. Configurable, defaulting to a few seconds.
+
+The published spec declares the scope each operation requires and documents `403`, so a consumer
+learns the requirement from the contract rather than by being refused.
 
 ### Validation
 
@@ -99,13 +111,14 @@ contract drift bug on our side, not a user error, so it must not come back as a 
 
 | Area | Cases |
 |---|---|
-| Claims | No header, wrong scheme, bad signature, `alg: none`, expired, wrong `iss`, wrong `aud`, missing scope, valid |
+| Claims | No header, wrong scheme, bad signature, `alg: none`, `alg` swapped, expired, not yet valid, wrong `iss`, wrong `aud`, valid |
+| Entitlement | Scope requested but not granted is `403`; granted proceeds; a forged scope claim does not grant itself access |
 | Validation | Every edge case in `contract.md` section 4, plus all failures returned together |
 | Boundaries | Amount and term exactly at each limit, inside and outside |
 | Translation | The table above, against a fake vendor |
 | Passthrough | A vendor commission inconsistent with the formula is returned unchanged |
 | Leakage | No `api-key`, bearer token or vendor URL in any response body |
-| Spec | Documented statuses match what the handler emits, required fields enforced, ranges match the validator |
+| Spec | Documented statuses match what the handler emits, required fields enforced, ranges match the validator, declared scope matches the one enforced |
 
 ## Verification
 

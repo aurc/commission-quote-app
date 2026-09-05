@@ -258,12 +258,82 @@ Signed JWT, HS256, shared secret `BFF_MIDDLEWARE_SIGNING_KEY`.
 | `iat`   | issued time               |
 | `jti`   | UUIDv4                    |
 
-The Middleware verifies signature, `iss`, `aud`, `exp`, and requires the `quote:generate` scope.
-Short expiry because the token is minted per request and never leaves the mesh.
+The Middleware verifies the signature, `iss`, `aud` and `exp`, accepting exactly one algorithm.
+`alg` is pinned to HS256 and every other value is rejected, `none` included: a verifier that trusts
+the header's choice of algorithm can be handed an unsigned token, or an HMAC token verified with a
+public key it thought was for RSA.
 
-Production replacement, documented not built: the IdP issues the staff token, the BFF validates it,
-and the Middleware validates the same token or a mesh issued workload identity. The shared secret
-disappears.
+Short expiry because the token is minted per request and never leaves the mesh. A few seconds of
+clock skew leeway is allowed, since two containers need not agree to the millisecond.
+
+### Authorisation is not the same as authentication
+
+A verified signature proves the token came from a holder of the secret. It does not establish that
+the subject may generate quotes.
+
+The `scope` claim is the caller **asking** to do something. It is not a grant. The BFF writes it, and
+the BFF is the party being checked, so treating it as a grant would make the check circular: the BFF
+would decide its own authority and the Middleware would confirm the BFF's opinion of itself. The
+`403` branch could never be reached.
+
+The Middleware therefore owns the decision, through an `Entitlements` port alongside the existing
+`AuthProvider` and `SecretProvider` seams:
+
+```go
+type Entitlements interface {
+    Granted(ctx context.Context, subject string) ([]string, error)
+}
+```
+
+A request is authorised only when **both** hold:
+
+1. the token is valid and requests `quote:generate` in its `scope` claim, and
+2. the Middleware's own `Entitlements` source grants `quote:generate` to that `sub`.
+
+| Outcome | Response |
+|---|---|
+| No token, malformed, expired, bad signature, wrong `iss` or `aud`, wrong `alg` | `401 UNAUTHENTICATED` |
+| Valid token, scope not requested | `403 FORBIDDEN` |
+| Valid token, scope requested, subject not granted it | `403 FORBIDDEN` |
+| Valid token, scope requested and granted | proceed |
+
+MVP implementation: an in memory grant table seeded with one entitled staff member and one
+unentitled one, so the `403` path is real and testable rather than theoretical. This satisfies
+`assumptions.md` FR4, which assumes pre configured access without saying who holds it.
+
+Production: the same interface backed by group membership from the directory, or a policy decision
+point. The interface is the seam; the source changes, the Middleware does not.
+
+### Required scopes are published
+
+The Middleware's OpenAPI file states the scope each operation requires, so a consumer learns it from
+the contract rather than from a `403`. `POST /v1/quotes` requires `quote:generate`, declared on the
+operation and described on the security scheme, and `403` is a documented response.
+
+The scheme is `http` `bearer` with `bearerFormat: JWT`, because that is what the transport actually
+is. An `oauth2` scheme would carry scopes natively, but it would also have to name a token endpoint,
+and there is no such endpoint in the MVP: the BFF mints the token itself. Inventing a `tokenUrl` to
+satisfy the schema would put a fiction in a published contract. When the IdP arrives the scheme
+becomes `openIdConnect` against real discovery, and the declared scopes carry over unchanged.
+
+### Stated limitations
+
+**HS256 is symmetric, so there is no non repudiation.** The Middleware can prove a token was minted
+by a holder of `BFF_MIDDLEWARE_SIGNING_KEY`. It cannot prove the holder was the BFF. Any component
+with the secret, the Middleware included, can mint a token the Middleware will accept. This is
+acceptable only because the secret lives in one place and never leaves the mesh.
+
+Production removes the property rather than mitigating it: the BFF signs with a private key and the
+Middleware holds only the public half, or both validate an IdP issued token against JWKS. Either way
+the Middleware loses the ability to mint what it verifies.
+
+**`jti` is carried but not enforced.** It is logged for correlation and is the hook a replay cache
+would use. With a 60 second expiry on a token that never leaves the mesh, a replay window that small
+did not justify the state in the MVP. Tracked as depth, not forgotten.
+
+**The staff session itself is fake.** `AuthProvider` returns a seeded in memory user. Everything
+above describes how the Middleware treats the claims it is given, not how those claims come to be
+trustworthy in the first place; that is the IdP's job and is documented, not built.
 
 ## 8. Observability
 
@@ -273,13 +343,14 @@ disappears.
 | Trace context  | W3C `traceparent`, propagated on every hop, spans on inbound and outbound |
 | Log format     | JSON, one line per event                                                  |
 | Log fields     | `ts`, `level`, `msg`, `component`, `method`, `line`, `correlationId`, `traceId`, `spanId` |
+| Attribution    | Quote requests also log `staffId`, the token's `sub`, and `jti`. An action a bank cares about should be attributable to someone |
 | Echoed         | `correlationId` appears in every error body so a user can quote it        |
 
 Never logged: the `api-key` value, bearer tokens, cookie values. The key is logged masked as
 `****<last 4>` so an operator can identify which key is loaded without recovering it.
 
 Logged: `loanAmount`, `loanTermInMonths`, `riskBand`. Business data, not PII, per `assumptions.md`
-2.2.
+2.2. Also `staffId`, which is an internal subject identifier, never a name or an email address.
 
 An inbound `X-Correlation-Id` is attacker controlled, so it is accepted only when it matches
 `[A-Za-z0-9._-]{1,64}`. A value outside that is discarded and replaced, not trimmed: a truncated id
