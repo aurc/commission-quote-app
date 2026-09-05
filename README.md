@@ -3,7 +3,21 @@
 Full-stack take-home: a web app that captures loan details and returns a commission quote from a
 mocked external vendor API.
 
-> Status: design complete, implementation in progress. Run instructions land with CQ-08.
+> Status: implementation in progress. The full `docker compose up` path and complete run
+> instructions land with CQ-08. Native development works today, see below.
+
+## Running locally
+
+```sh
+make env             # writes .env from .env.example, dev values only
+make run-cqapi-mock  # vendor stand in, port 8083
+make run-middleware  # middleware, port 8082
+```
+
+`make check` formats, vets and runs the tests. `make help` lists every target.
+
+The vendor mock fails 15% of requests by default, because the challenge asks it to. Set
+`CQAPI_FAILURE_RATE=0` in `.env` while working on something else.
 
 ## Documents
 

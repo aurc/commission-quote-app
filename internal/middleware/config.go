@@ -1,11 +1,16 @@
 package middleware
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/aurc/commission-quote-app/internal/platform/config"
 	"github.com/aurc/commission-quote-app/internal/platform/secrets"
 )
+
+// minSigningKeyBytes matches the HS256 digest size. A shorter key is accepted
+// by the algorithm but provides less strength than the MAC it produces.
+const minSigningKeyBytes = 32
 
 // Config is the Middleware's configuration, per contract.md section 9.
 type Config struct {
@@ -38,7 +43,7 @@ func Load() (Config, error) {
 		Port:          l.Port("PORT", 8082),
 		LogLevel:      l.String("LOG_LEVEL", "info"),
 		OTLPEndpoint:  l.String("OTEL_EXPORTER_OTLP_ENDPOINT", ""),
-		VendorBaseURL: l.String("CQAPI_BASE_URL", "http://cqapi:8083"),
+		VendorBaseURL: l.String("CQAPI_BASE_URL", "http://cqapi-mock:8083"),
 		VendorAPIKey:  l.RequiredSecret("CQAPI_API_KEY"),
 		SigningKey:    l.RequiredSecret("BFF_MIDDLEWARE_SIGNING_KEY"),
 		VendorTimeout: l.Duration("MIDDLEWARE_VENDOR_TIMEOUT", 2*time.Second),
@@ -47,6 +52,12 @@ func Load() (Config, error) {
 	}
 	if err := l.Err(); err != nil {
 		return Config{}, err
+	}
+	// An HS256 key shorter than the digest it produces weakens the signature,
+	// and a short key is exactly what gets invented by hand for a dev
+	// environment and then quietly promoted.
+	if n := len(cfg.SigningKey.Reveal()); n < minSigningKeyBytes {
+		return Config{}, fmt.Errorf("config BFF_MIDDLEWARE_SIGNING_KEY: must be at least %d bytes for HS256, got %d", minSigningKeyBytes, n)
 	}
 	return cfg, nil
 }

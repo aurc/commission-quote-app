@@ -8,6 +8,12 @@ GO      ?= go
 # it is, so nothing reads as production code by accident. It is the one binary
 # deleted when the real vendor arrives.
 SERVICES = cqapi-mock cqapp-middleware cqapp-bff
+
+# Load .env into the run targets only, never globally. Exporting it for every
+# target would leak a developer's environment into `make test`, and a test that
+# passes or fails depending on what is in someone's .env is worse than no test.
+# Docker compose sets its own environment and never reads this file.
+RUN_ENV = set -a; if [ -f .env ]; then . ./.env; else echo "no .env found, run 'make env' first" >&2; fi; set +a;
 BIN      = bin
 
 .DEFAULT_GOAL := help
@@ -64,10 +70,18 @@ clean: ## Remove build output
 	rm -rf $(BIN)
 
 # Native dev. The reviewer path is docker compose, added in CQ-08.
+.PHONY: env
+env: ## Create .env from .env.example if it does not exist
+	@if [ -f .env ]; then \
+		echo ".env already exists, leaving it alone"; \
+	else \
+		cp .env.example .env && echo "created .env from .env.example"; \
+	fi
+
 .PHONY: run-cqapi-mock run-middleware run-bff
 run-cqapi-mock: ## Run the vendor mock
-	$(GO) run ./cmd/cqapi-mock
+	@$(RUN_ENV) $(GO) run ./cmd/cqapi-mock
 run-middleware: ## Run the middleware
-	$(GO) run ./cmd/cqapp-middleware
+	@$(RUN_ENV) $(GO) run ./cmd/cqapp-middleware
 run-bff: ## Run the BFF
-	$(GO) run ./cmd/cqapp-bff
+	@$(RUN_ENV) $(GO) run ./cmd/cqapp-bff

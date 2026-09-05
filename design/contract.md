@@ -372,14 +372,22 @@ accepts a malformed endpoint and silently drops every trace.
 | Env var                      | Components            | Default                    | Required |
 |------------------------------|-----------------------|----------------------------|----------|
 | `CQAPI_API_KEY`              | middleware, cqapi     | none                       | yes      |
-| `CQAPI_BASE_URL`             | middleware            | `http://cqapi:8083`        | no       |
-| `MIDDLEWARE_BASE_URL`        | bff                   | `http://middleware:8082`   | no       |
+| `CQAPI_BASE_URL`             | middleware            | `http://cqapi-mock:8083`   | no       |
+| `MIDDLEWARE_BASE_URL`        | bff                   | `http://cqapp-middleware:8082` | no   |
 | `BFF_MIDDLEWARE_SIGNING_KEY` | bff, middleware       | none                       | yes      |
 | `PORT`                       | all                   | per component below        | no       |
 | `LOG_LEVEL`                  | all                   | `info`                     | no       |
 | `OTEL_EXPORTER_OTLP_ENDPOINT`| all                   | unset                      | no       |
 
-Startup fails fast and loudly if a required secret is absent.
+Defaults are the docker compose service names. Running natively, `make env`
+writes a `.env` from the committed `.env.example`, which points everything at
+localhost; the Makefile loads it. `.env` is gitignored, so a real value never
+reaches the repository.
+
+Startup fails fast and loudly if a required secret is absent, and
+`BFF_MIDDLEWARE_SIGNING_KEY` must be at least 32 bytes: an HS256 key shorter
+than the digest it produces weakens the signature, and a short key is exactly
+what someone picks when inventing one by hand.
 
 | Component  | Port   | Reachable from the browser |
 |------------|--------|----------------------------|
