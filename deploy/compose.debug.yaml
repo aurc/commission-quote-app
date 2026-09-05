@@ -1,0 +1,26 @@
+# Publishes the internal services, so each API can be exercised on its own.
+#
+#   docker compose -f deploy/compose.yaml -f deploy/compose.debug.yaml up --build
+#   make up-debug
+#
+# The base compose file publishes only the Edge, which is the isolation
+# design/assumptions.md claims and the property worth keeping. This file opts
+# out of it deliberately and locally, so the Postman collection can drive the
+# Middleware and the vendor mock directly, against the same running stack rather
+# than a second one.
+#
+# Never use it anywhere but a laptop. Bound to loopback rather than every
+# interface, so opening these ports does not also open them to the network.
+
+services:
+  cqapp-middleware:
+    ports:
+      - "127.0.0.1:8082:8082"
+
+  cqapi-mock:
+    ports:
+      - "127.0.0.1:8083:8083"
+
+  cqapp-bff:
+    ports:
+      - "127.0.0.1:8081:8081"

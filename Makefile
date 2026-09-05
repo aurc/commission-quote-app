@@ -84,9 +84,13 @@ clean: ## Remove build output
 up: ## Run the whole stack in Docker on http://localhost:8080
 	docker compose -f deploy/compose.yaml up --build
 
+.PHONY: up-debug
+up-debug: ## Run the stack with the internal services published, for the Postman collection
+	docker compose -f deploy/compose.yaml -f deploy/compose.debug.yaml up --build
+
 .PHONY: down
 down: ## Stop the stack and remove its containers
-	docker compose -f deploy/compose.yaml down --remove-orphans
+	docker compose -f deploy/compose.yaml -f deploy/compose.debug.yaml down --remove-orphans
 
 .PHONY: logs
 logs: ## Follow the stack's logs

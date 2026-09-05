@@ -206,29 +206,23 @@ make smoke     # the Postman collection, against a running stack
 
 [postman/](postman/) holds a collection with one folder per component, so each API can be driven
 without the others. Import it into Postman with `postman/local.postman_environment.json`, or run it
-headlessly:
+headlessly.
+
+The default stack publishes only the Edge, so the Middleware and the vendor mock cannot be reached
+from your machine. That is deliberate, and it is the isolation the design claims. To exercise them,
+opt out of it locally:
 
 ```sh
-make up      # the stack, on 8080
-make smoke   # 19 requests, 29 assertions
+make up-debug   # the same stack, with 8081, 8082 and 8083 published on loopback
+make smoke      # 19 requests, 29 assertions
 ```
+
+`make up` remains the normal way to run it, with everything but the Edge closed.
 
 Every request carries assertions, so the collection is a smoke test as well as a set of examples. The
-BFF folder runs against the compose stack. The **Middleware and vendor folders need those services
-run natively**, because compose deliberately publishes only the Edge:
-
-```sh
-make run-cqapi-mock &
-make run-cqapp-middleware &
-```
-
-The Middleware folder mints its own bearer token in a pre-request script, so it needs no BFF and no
+Middleware folder mints its own bearer token in a pre-request script, so it needs no BFF and no
 `make dev-token`. The request worth reading is *Unentitled subject claiming the scope*: the token asks
 for `quote:generate`, and the Middleware refuses because its own entitlement source does not grant it.
-
-Tests use `httptest` fakes and never touch the network, so they do not need either service running.
-`.env` is deliberately not exported into `make test`: a test that passes or fails depending on a
-developer's environment is worse than no test.
 
 ## Make targets
 

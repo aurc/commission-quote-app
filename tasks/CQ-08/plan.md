@@ -142,6 +142,12 @@ Every request carries assertions, so the collection is a smoke test as well as a
 The Middleware folder mints its own HS256 bearer in a pre-request script, so that service can be
 driven without the BFF and without `make dev-token`.
 
+Reaching those services needed solving properly. The first instruction was to run them natively
+alongside compose, which quietly created a second stack: the Postman requests hit a native Middleware
+talking to a native vendor, not the compose ones, so the collection was testing something other than
+what was running. `deploy/compose.debug.yaml` publishes them on loopback instead, as an explicit opt
+out of an isolation worth keeping by default.
+
 Writing it found a bug in the collection rather than the application. The pre-request script read
 `pm.environment.get('scope') || 'quote:generate'`, and an empty scope is falsy, so the case testing a
 token that does not request the scope still requested it and returned 200. The assertion caught it.

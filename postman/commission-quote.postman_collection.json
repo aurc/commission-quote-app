@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Commission Quote App",
-    "description": "Every endpoint in the system, one folder per component, so each API can be exercised on its own.\n\nRun the BFF folder against the compose stack on 8080. The Middleware and vendor folders need those services run natively, because compose deliberately publishes only the Edge.\n\nRequests carry assertions, so `newman run` is a smoke test as well as a set of examples: `make smoke`.",
+    "description": "Every endpoint in the system, one folder per component, so each API can be exercised on its own.\n\nThe default stack publishes only the Edge, so the Middleware and the vendor mock are not reachable from your machine. Run `make up-debug` to publish them on loopback for testing, or `make up` for the normal, closed configuration where only the BFF folder will work.\n\nRequests carry assertions, so `newman run` is a smoke test as well as a set of examples: `make smoke`.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -266,7 +266,7 @@
     },
     {
       "name": "Middleware (internal)",
-      "description": "The only component that holds the vendor credential and the only one that decides whether a caller may generate a quote.\n\nNot browser facing and not published by compose, so these run only against a natively run Middleware on 8082. Each request mints its own bearer in a pre-request script, so no BFF is needed.",
+      "description": "The only component that holds the vendor credential and the only one that decides whether a caller may generate a quote.\n\nNot published by the default stack. Run `make up-debug` to reach it on 8082. Each request mints its own bearer in a pre-request script, so no BFF is needed.",
       "item": [
         {
           "name": "Generate a quote",
@@ -622,7 +622,7 @@
     },
     {
       "name": "Vendor mock (not ours)",
-      "description": "The stand in for the external Commission Quote API, deleted when the real one exists.\n\nNot published by compose, so these run against a natively run mock on 8083. Note the vendor returns 201 and its own error shape: translating both is the Middleware's job.",
+      "description": "The stand in for the external Commission Quote API, deleted when the real one exists.\n\nNot published by the default stack. Run `make up-debug` to reach it on 8083. Note the vendor returns 201 and its own error shape: translating both is the Middleware's job.",
       "item": [
         {
           "name": "Generate a quote",
