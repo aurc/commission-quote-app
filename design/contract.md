@@ -29,7 +29,7 @@ Rates are JSON numbers with 4 decimal places (`0.0125` is 1.25%).
 
 ## 2. Vendor contract (CQAPI)
 
-`POST /v1/quotes`
+`POST /v1/quotes`. Published in `api/cqapi.openapi.yaml`.
 
 Headers: `api-key` (required), `Content-Type: application/json`, `X-Correlation-Id`, `traceparent`.
 
@@ -83,7 +83,7 @@ which failed. Comparison is constant time.
 
 ## 3. Middleware contract
 
-`POST /api/v1/quotes`. Published in `api/openapi.yaml`.
+`POST /api/v1/quotes`. Published in `api/middleware.openapi.yaml`.
 
 Same request and response bodies as the vendor. The MVP contract deliberately mirrors the vendor;
 divergence is expected later and is the reason the layer exists.
@@ -277,7 +277,7 @@ Startup fails fast and loudly if a required secret is absent.
 | Go units   | Table driven, `httptest` fakes, `-race`, no network                        |
 | Validation | One table covering every edge case listed in section 4                     |
 | Resilience | Fake vendor: timeout, retry then succeed, no retry on `500`, breaker cycle |
-| Contract   | Middleware responses asserted against `api/openapi.yaml` shapes            |
+| Contract   | Each service's responses asserted against its own published OpenAPI file   |
 | FE         | Vitest and React Testing Library on validation and state rendering         |
 
 Determinism: `CQAPI_RANDOM_SEED` for injection, injected clocks for backoff and breaker timing.

@@ -53,7 +53,9 @@ Abbreviations: **CQApp** (this app), **CQAPI** (mocked vendor), **FE**, **BFF**.
 
 ```
 go.mod                    single module
-api/openapi.yaml          Middleware published contract, hand written
+api/
+  cqapi.openapi.yaml      vendor published contract, hand written
+  middleware.openapi.yaml our published contract, hand written
 cmd/{bff,middleware,cqapi}/main.go
 internal/
   platform/               log, config, otel, secrets, http helpers

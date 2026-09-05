@@ -8,8 +8,8 @@ Statuses: `todo`, `in progress`, `done`.
 |-------|-----------------------------|--------|--------------------------------------------------------|
 | CQ-01 | Design completeness pass    | done   | `design/contract.md`, repaired `design/assumptions.md` |
 | CQ-02 | Scaffold and platform       | done   | `go.mod`, `Makefile`, `internal/platform`              |
-| CQ-03 | Mocked vendor CQAPI         | todo   | `cmd/cqapi`                                            |
-| CQ-04 | Middleware core and OpenAPI | todo   | `cmd/middleware`, `api/openapi.yaml`                   |
+| CQ-03 | Mocked vendor CQAPI         | done   | `cmd/cqapi`, `api/cqapi.openapi.yaml`                  |
+| CQ-04 | Middleware core and OpenAPI | todo   | `cmd/middleware`, `api/middleware.openapi.yaml`        |
 | CQ-05 | Middleware resilience       | todo   | timeouts, retries, circuit breaker                     |
 | CQ-06 | BFF and AuthProvider        | todo   | `cmd/bff`                                              |
 | CQ-07 | Web front end               | todo   | `web/`                                                 |
@@ -30,13 +30,15 @@ rendering. Built first so later components are observable from birth.
 
 ### CQ-03 Mocked vendor CQAPI
 
-Vendor contract per `contract.md`. `api-key` enforcement, seedable failure and latency injection,
-commission calculation. The vendor owns the formula; nothing downstream recomputes it.
+Vendor contract per `contract.md`, published as `api/cqapi.openapi.yaml`. `api-key` enforcement,
+seedable failure and latency injection, commission calculation. The vendor owns the formula; nothing
+downstream recomputes it.
 
 ### CQ-04 Middleware core and OpenAPI
 
 Authoritative validation, caller claim verification, vendor client, error mapping that never leaks
-vendor auth failures to the caller. Published `api/openapi.yaml`.
+vendor auth failures to the caller. Published as `api/middleware.openapi.yaml`, which starts close to
+the vendor spec and is expected to diverge.
 
 ### CQ-05 Middleware resilience
 
