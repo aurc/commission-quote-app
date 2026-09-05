@@ -2,74 +2,89 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Hard rules
+
+- **Never merge a PR.** The repo owner reviews and merges in GitHub. Open PRs, never merge them.
+- **Never push to `main`.** Work happens on `cq-0N-<slug>` branches.
+- Prose style in docs and replies: concise, tables over paragraphs, no em dashes.
+
 ## Current state
 
-This repository is **documentation-only so far** — there is no application code, no `go.mod`, no
-`package.json`, and no build/test tooling yet. `design/assumptions.md` is the authoritative design
-contract that the implementation must follow; read it before writing any code.
+Design and planning are complete. No application code yet: no `go.mod`, no `package.json`, no build
+or test tooling. Add commands to this file as each is created.
 
-Because nothing is scaffolded, there are no build/lint/test commands to reuse yet. When the first
-component is created, add its commands to this file and the run instructions to `README.md` (the
-challenge explicitly grades on step-by-step run instructions and the presence of core tests).
+Authoritative documents, read both before writing code:
+
+| File | Holds |
+|---|---|
+| `design/assumptions.md` | Why: posture, trade-offs, scope, delivery tiers |
+| `design/contract.md` | What: schemas, validation rules, commission formula, error taxonomy, resilience budgets, auth claims, config, testing strategy |
+| `tasks/register.md` | The 8 task register and per task workflow |
+| `source/challenge.md`, `source/*.pdf` | The original brief |
+
+`contract.md` wins on behaviour. `assumptions.md` wins on intent.
 
 ## What is being built
 
-A take-home challenge (Bendigo Lending Platform): a staff-facing web app that captures loan details
-(`loanAmount`, `loanTermInMonths`, `riskBand`) and returns a commission quote (`quoteId`,
-`commissionRate`, `totalCommission`) from a **mocked** external vendor API.
+Staff facing web app: capture `loanAmount`, `loanTermInMonths`, `riskBand`, return a commission
+quote (`quoteId`, `commissionRate`, `totalCommission`) from a mocked vendor API.
 
-Timebox is 4 hours of implementation. Target is readable code with clean separation of concerns,
-a few core tests, and sensible edge-case handling — not a production system. The codebase will later
-be extended live in a collaborative coding session, so structure matters more than completeness.
+4 hour timebox. Readable code, core tests, clear edge case handling, simple run instructions. The
+codebase gets extended live in a follow up session, so structure matters more than completeness.
 
-`source/challenge.md` + `source/Code Challenge - Commission Quote App.pdf` hold the original brief.
+## Architecture
 
-## Architecture (decided in design/assumptions.md)
+Five components, single browser visible origin. Do not short circuit the layering: the FE never
+calls the Middleware, and the vendor key never reaches the BFF or the browser.
 
-Five components behind a single browser-visible origin. The layering is deliberate — do not
-short-circuit it (e.g. never let the FE call the Middleware directly, never let the vendor key
-reach the BFF or the browser).
+| Component | Stack | Port | Owns |
+|---|---|---|---|
+| Edge | nginx | 8080 | Single origin, TLS, FE assets with SPA fallback, `/api` to BFF |
+| FE | React + Vite | via edge | Form, inline validation, loading/error/result states |
+| BFF | Go | 8081 | Session cookie, cookie to bearer exchange, UI friendly errors. No business logic, no vendor credential |
+| Middleware | Go | 8082 | Claim verification, authoritative validation, retries, breaker, OpenAPI, holds the `api-key` |
+| CQAPI (mock) | Go | 8083 | Vendor contract, `api-key` enforcement, failure and latency injection |
 
-| Component      | Stack               | Owns                                                                  |
-|----------------|---------------------|-----------------------------------------------------------------------|
-| Edge           | nginx               | Single origin, TLS termination, serves FE assets w/ SPA fallback, routes `/api` → BFF |
-| FE             | React SPA + Vite    | Form, inline validation, loading/error/result states, presentation formatting |
-| BFF            | Tiny Go binary      | Staff session cookie → bearer exchange, UI-friendly errors. No business logic, no vendor credential |
-| Middleware     | Go service          | Claim verification, authoritative validation, retries/backoff, circuit breaking, OpenAPI spec, holds the vendor `api-key` |
-| CQAPI (mocked) | Standalone Go binary| Vendor contract, `api-key` enforcement, random failure + latency injection |
+Abbreviations: **CQApp** (this app), **CQAPI** (mocked vendor), **FE**, **BFF**.
 
-Abbreviations used throughout the docs: **CQApp** (this app), **CQAPI** (mocked vendor),
-**FE**, **BFF**.
+## Layout
 
-### Non-negotiable constraints from the design doc
+```
+go.mod                    single module
+api/openapi.yaml          Middleware published contract, hand written
+cmd/{bff,middleware,cqapi}/main.go
+internal/
+  platform/               log, config, otel, secrets, http helpers
+  bff/  middleware/  cqapi/
+web/                      React + Vite
+deploy/                   nginx.conf, docker-compose.yml, Dockerfiles
+```
 
-- **Vendor `api-key` is Middleware-only.** Injected as `CQAPI_API_KEY` through a `SecretProvider`
-  interface (env vars in the MVP). Never in FE bundles, never in a BFF response, never past the
-  browser boundary. Masked in logs (trailing chars only). CQAPI rejects missing and wrong keys
-  identically; the Middleware surfaces a non-security-revealing error to callers while logging the
-  real auth failure.
-- **Staff identity and vendor auth are separate concerns** — an `AuthProvider` interface (fake
-  in-memory staff session in the MVP) authorises the caller into CQApp; the `api-key` authenticates
-  CQApp to the vendor. Do not conflate them.
-- **Zero trust:** every component verifies the caller's claims. No unprotected resources.
-- **Stateless** — no persistence anywhere. Quotes are advisory, non-binding, no lifecycle/expiry/audit.
-- **Retries only where no quote was returned.** Quote generation is assumed non-idempotent at the
-  vendor, so bounded exponential backoff applies to failures that definitely produced no quote;
-  hung requests get a hard timeout.
-- **Observability:** structured JSON logs (component, method, line, message, level) and OpenTelemetry
-  trace/span propagation across requests. `loanAmount` is business data and may be logged; secrets
-  and bearer tokens never are.
-- Single currency (AUD), no localisation. View-only staff user, no admin/technical roles.
+Reviewer run path is `docker compose up`. Makefile targets exist for native dev.
 
-## Working conventions
+## Constraints that are easy to get wrong
 
-The author is running this challenge as an explicit AI-first, transparent workflow:
+- **Vendor `api-key` is Middleware only.** Env `CQAPI_API_KEY` via `SecretProvider`. Never in FE
+  bundles, never in a BFF response, never past the browser. Masked in logs as `****<last 4>`.
+- **A vendor auth failure maps to `502`, never `401`.** Staff auth and vendor auth are separate
+  concerns. Log the real cause, return a non revealing message.
+- **A vendor `500` is not retryable.** Quote generation is non idempotent, so `500` is ambiguous.
+  Retry only connection failures, pre header timeouts, `502`/`503`/`504`, `429`. Full table in
+  `contract.md` section 6.
+- **The vendor owns the commission formula.** The Middleware passes the result through and never
+  recomputes it.
+- **Validation is authoritative in the Middleware.** The FE mirrors it for feedback only.
+- Stateless everywhere. No persistence. Quotes are advisory, not binding.
+- `loanAmount` is logged as business data. Secrets, bearer tokens and cookie values never are.
+- Single currency AUD, no localisation. View only staff user.
 
-- Work is broken into discrete tasks tracked in `tasks/register.md`. Every task has a short `code`.
-- Each task gets **two commits**: one containing the AI-planned work, one containing the finished
-  task.
-- PR titles start with the task `code`.
-- `README.md` must end up with an AI-usage transparency section (required by the challenge brief).
+## Workflow
 
-Expected layout once scaffolded (implied by `.gitignore`): Go binaries build into `/bin/`, the
-front end lives in `/web/` and builds to `/web/dist/`.
+Per task, per `README.md`:
+
+1. Branch `cq-0N-<slug>`.
+2. Commit 1: the planned work. Plan at `tasks/CQ-0N/plan.md`, register entry set to `in progress`.
+3. Commit 2: the finished implementation and its tests, register entry set to `done`.
+4. Open a PR titled `CQ-0N - <title>`. Do not merge it.
+
+`README.md` must end up with an AI usage transparency section, required by the brief.

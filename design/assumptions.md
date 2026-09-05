@@ -1,6 +1,6 @@
 # Commission Quote App
 
-This document outlines design assumptions I made based on the informaton provided on the challenge document. I'll use
+This document outlines design assumptions I made based on the information provided on the challenge document. I'll use
 the following abbreviations:
 
 - **CQApp**: The app being built (Commission Quote App).
@@ -8,9 +8,13 @@ the following abbreviations:
 - **FE**: Web Front End.
 - **BFF**: Backend for the Front End.
 
+This document holds the *why*. The implementation level detail it drives (schemas, validation rules,
+the commission formula, the error taxonomy, resilience budgets, configuration) lives in
+[contract.md](contract.md).
+
 ## Functional Requirements
 
-Key assumptions: It's a banking setting, os therefore zero trust between services is the posture, therefore every
+Key assumptions: It's a banking setting, and therefore zero trust between services is the posture, therefore every
 component should verify the claims of the caller. No unprotected resources. The CQApp will have some form of user
 authentication without which no access should be allowed.
 
@@ -33,7 +37,7 @@ banking system (internal or external).
        below.
     3. Requests that hang for an arbitrary amount of time will be terminated to preserve system resources.
     4. [Assumption] Quote generation is not idempotent at the vendor. Retries restricted to failures where
-       no quote have been returnd.
+       no quote has been returned.
     5. [Assumption] Quotes are not binding, if one is generated but we have not received from CQAPI (e.g. timeout) a
        new quote will be regenerated upon a succesful request.
 2. Monitoring and Observability:
@@ -62,21 +66,70 @@ banking system (internal or external).
 4. Scalability & Performance: Not mentioned but assumed can be managed at infrastructure level (e.g. auto-scaling,
    components health check). Front end is a React SPA built with Vite, kept lean so load times stay low.
 
+### Resilience Budgets
+
+Referenced by Non-Functional Requirement 1.2 above. The policy:
+
+1. Budgets nest. Each caller's timeout exceeds its callee's total budget, so the innermost layer
+   reports the specific failure instead of an outer layer reporting a generic timeout.
+2. Retries are bounded in both attempts and total elapsed time, with exponential backoff and full
+   jitter.
+3. A retry is only permitted where the failure proves no quote was created at the vendor. A vendor
+   `500` is ambiguous and is therefore not retried.
+4. Every hop has a hard timeout. Nothing hangs indefinitely.
+
+The values are in [contract.md](contract.md) section 6, kept there so they can be tuned without
+reopening this document.
+
 ## Scope
 
 The table below splits what is built from what is documented as the production step.
 
-| Concern       | In scope for the MVP                                                                          |
-|---------------|-----------------------------------------------------------------------------------------------|
-| Web Front End | React SPA, form, loading, error and result states                                             |
-| Middleware    | Go service, session check, validation, commission orchestration, api-key, resilience, OpenAPI |
-| BFF           | Tiny Go binary, session cookie, proxy to Middleware                                           |
-| Mocked CQAPI  | Standalone Go binary, api-key enforcement, random failures, latency injection                 |
-| Edge          | nginx, single origin, TLS termination point, serves FE assets with SPA fallback, routes`/api` |
-| Staff auth    | `AuthProvider` interface with a fake in-memory Staff session                                  |
-| Secrets       | `SecretProvider` interface reading env vars                                                   |
-| Observability | Structured JSON logs, correlation id propagation, open telemetry traces                       |
-| Persistence   | None, stateless                                                                               |
+| Concern       | In scope for the MVP                                                                          | Production step                                                       |
+|---------------|-----------------------------------------------------------------------------------------------|-----------------------------------------------------------------------|
+| Web Front End | React SPA, form, loading, error and result states                                             | Design system, accessibility audit, localisation                      |
+| Middleware    | Go service, session check, validation, commission orchestration, api-key, resilience, OpenAPI | Claim verification against the real IdP or mesh identity, rate limiting |
+| BFF           | Tiny Go binary, session cookie, proxy to Middleware                                           | OIDC authorisation code flow, distributed session store               |
+| Mocked CQAPI  | Standalone Go binary, api-key enforcement, random failures, latency injection                 | Deleted, replaced by the vendor plus contract tests against their sandbox |
+| Edge          | nginx, single origin, TLS termination point, serves FE assets with SPA fallback, routes `/api` | Managed certificates, WAF, CDN for static assets                      |
+| Staff auth    | `AuthProvider` interface with a fake in-memory Staff session                                  | OIDC against the bank IdP behind the same interface                   |
+| Secrets       | `SecretProvider` interface reading env vars                                                   | Bank secret manager behind the same interface, rotation               |
+| Observability | Structured JSON logs, correlation id propagation, open telemetry traces                       | OTLP collector, dashboards, alerting, SLOs                            |
+| Persistence   | None, stateless                                                                               | Audit store, only if quotes ever become binding                       |
+
+### Delivery Tiers
+
+The challenge sets a 4 hour timebox. The scope above is wider than that, so each item carries a tier.
+Core ships or the submission is incomplete. Depth ships if time holds. Documented only is specified
+here and deliberately not built.
+
+| Item                                          | Tier            |
+|-----------------------------------------------|-----------------|
+| Mocked CQAPI with api-key and random failures | core            |
+| Validation, both sides, with the edge cases   | core            |
+| Error taxonomy and safe user messages         | core            |
+| Timeouts and bounded retries                  | core            |
+| BFF session and cookie to bearer exchange     | core            |
+| FE form with loading, error and result states | core            |
+| Edge, compose, README run instructions        | core            |
+| Structured JSON logging with key masking      | core            |
+| Core unit tests per component                 | core            |
+| Circuit breaker                               | depth           |
+| OpenTelemetry spans and propagation           | depth           |
+| OpenAPI contract test                         | depth           |
+| Accessibility and responsive polish           | depth           |
+| Real OIDC, secret manager, persistence        | documented only |
+| Rate limiting, collectors, dashboards         | documented only |
+
+Honest note on the timebox: the breaker and tracing are the two items most likely to be cut. They
+are specified so the intent is legible even if the code is not there.
+
+### Testing
+
+Not mentioned above but graded by the challenge, so stated here: table driven Go unit tests with
+`httptest` fakes and no network, a validation table covering every edge case, resilience tests
+against a fake vendor, and FE tests on validation and state rendering. Randomness and time are
+injected so tests are deterministic. Detail in [contract.md](contract.md) section 10.
 
 ## Design
 
@@ -92,7 +145,7 @@ The core application **CQApp** is broken into 3 blocks:
   vendor is replaced, or additional functionality is built in the middleware to augment the capabilities of the service.
 
 In front of the three sits the **Edge** (nginx). It is the published origin, serves the built FE assets with SPA
-fallback, and routes `/api` to the BFF. The middleware and CQAPI are not reacheable through the front end reverse proxy.
+fallback, and routes `/api` to the BFF. The middleware and CQAPI are not reachable through the front end reverse proxy.
 
 <img src="design.svg">
 
