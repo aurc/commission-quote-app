@@ -4,7 +4,10 @@
 # register in tasks/register.md.
 
 GO      ?= go
-SERVICES = cqapi middleware bff
+# Our components carry the cqapp- prefix. The vendor stand in is named for what
+# it is, so nothing reads as production code by accident. It is the one binary
+# deleted when the real vendor arrives.
+SERVICES = cqapi-mock cqapp-middleware cqapp-bff
 BIN      = bin
 
 .DEFAULT_GOAL := help
@@ -61,10 +64,10 @@ clean: ## Remove build output
 	rm -rf $(BIN)
 
 # Native dev. The reviewer path is docker compose, added in CQ-08.
-.PHONY: run-cqapi run-middleware run-bff
-run-cqapi: ## Run the mocked vendor API
-	$(GO) run ./cmd/cqapi
+.PHONY: run-cqapi-mock run-middleware run-bff
+run-cqapi-mock: ## Run the vendor mock
+	$(GO) run ./cmd/cqapi-mock
 run-middleware: ## Run the middleware
-	$(GO) run ./cmd/middleware
+	$(GO) run ./cmd/cqapp-middleware
 run-bff: ## Run the BFF
-	$(GO) run ./cmd/bff
+	$(GO) run ./cmd/cqapp-bff

@@ -3,7 +3,7 @@ package cqapi_test
 import (
 	"testing"
 
-	"github.com/aurc/commission-quote-app/internal/cqapi"
+	"github.com/aurc/commission-quote-app/internal/cqapimock"
 	"github.com/aurc/commission-quote-app/internal/platform/money"
 )
 

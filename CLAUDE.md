@@ -45,7 +45,7 @@ calls the Middleware, and the vendor key never reaches the BFF or the browser.
 | FE | React + Vite | via edge | Form, inline validation, loading/error/result states |
 | BFF | Go | 8081 | Session cookie, cookie to bearer exchange, UI friendly errors. No business logic, no vendor credential |
 | Middleware | Go | 8082 | Claim verification, authoritative validation, retries, breaker, OpenAPI, holds the `api-key` |
-| CQAPI (mock) | Go | 8083 | Vendor contract, `api-key` enforcement, failure and latency injection |
+| cqapi-mock | Go | 8083 | Vendor contract, `api-key` enforcement, failure and latency injection |
 
 Abbreviations: **CQApp** (this app), **CQAPI** (mocked vendor), **FE**, **BFF**.
 
@@ -56,10 +56,13 @@ go.mod                    single module
 api/
   cqapi.openapi.yaml      vendor published contract, hand written
   middleware.openapi.yaml our published contract, hand written
-cmd/{bff,middleware,cqapi}/main.go
+cmd/
+  cqapp-bff/       our binaries carry the cqapp- prefix
+  cqapp-middleware/
+  cqapi-mock/      the vendor stand in, named for what it is
 internal/
   platform/               log, config, otel, secrets, http helpers
-  bff/  middleware/  cqapi/
+  bff/  middleware/  cqapimock/
 web/                      React + Vite
 deploy/                   nginx.conf, docker-compose.yml, Dockerfiles
 ```

@@ -6,7 +6,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/aurc/commission-quote-app/internal/cqapi"
+	"github.com/aurc/commission-quote-app/internal/cqapimock"
 	"gopkg.in/yaml.v3"
 )
 

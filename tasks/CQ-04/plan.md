@@ -15,7 +15,7 @@ Contract in `design/contract.md` sections 3 to 7. Published as `api/middleware.o
 
 ```
 api/middleware.openapi.yaml   our published contract
-cmd/middleware/main.go
+cmd/cqapp-middleware/main.go
 internal/middleware/
   auth.go        bearer verification, algorithm pinning
   entitle.go     Entitlements port and the in memory grant table

@@ -171,7 +171,7 @@ func NewRouter(cfg Config, log *slog.Logger) http.Handler {
 	// recoverer sits inside the request logger so a panic is still logged with
 	// its status.
 	return httpx.Chain(mux,
-		telemetry.Middleware("cqapi"),
+		telemetry.Middleware("cqapi-mock"),
 		httpx.Correlation(),
 		httpx.RequestLogger(log),
 		httpx.Recoverer(log),

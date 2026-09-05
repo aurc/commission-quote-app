@@ -12,13 +12,13 @@ import (
 	"os"
 	"time"
 
-	"github.com/aurc/commission-quote-app/internal/cqapi"
+	"github.com/aurc/commission-quote-app/internal/cqapimock"
 	"github.com/aurc/commission-quote-app/internal/platform/httpx"
 	"github.com/aurc/commission-quote-app/internal/platform/logging"
 	"github.com/aurc/commission-quote-app/internal/platform/telemetry"
 )
 
-const component = "cqapi"
+const component = "cqapi-mock"
 
 func main() {
 	if err := run(context.Background()); err != nil {

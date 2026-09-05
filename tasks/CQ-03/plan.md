@@ -22,8 +22,8 @@ the divergence point concrete: `api/cqapi.openapi.yaml` is the vendor's, ours is
 
 ```
 api/cqapi.openapi.yaml       the vendor's published contract
-cmd/cqapi/main.go            config load, wiring, serve
-internal/cqapi/
+cmd/cqapi-mock/main.go            config load, wiring, serve
+internal/cqapimock/
   quote.go                   the formula and money arithmetic
   handler.go                 POST /v1/quotes
   auth.go                    api-key enforcement

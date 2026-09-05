@@ -26,7 +26,7 @@ and the vendor `api-key` never leaves the Middleware.
 | Web Front End | React, Vite | via Edge | Form, inline validation, loading, error and result states |
 | BFF | Go | 8081 | Staff session cookie, cookie to bearer exchange, UI friendly errors |
 | Middleware | Go | 8082 | Claim verification, authoritative validation, resilience, holds the `api-key` |
-| CQAPI (mocked) | Go | 8083 | Vendor contract, `api-key` enforcement, failure and latency injection |
+| cqapi-mock | Go | 8083 | Vendor contract, `api-key` enforcement, failure and latency injection |
 
 <img src="design/design.svg">
 
@@ -34,7 +34,10 @@ and the vendor `api-key` never leaves the Middleware.
 
 ```
 api/          Middleware OpenAPI contract                    (CQ-04)
-cmd/          bff, middleware, cqapi entry points            (CQ-02)
+cmd/
+  cqapp-bff/  BFF entry point                              (CQ-06)
+  cqapp-middleware/  Middleware entry point                (CQ-04)
+  cqapi-mock/ vendor stand in, named for what it is        (CQ-03)
 internal/
   platform/   logging, config, secrets, telemetry            (CQ-02)
   bff/ middleware/ cqapi/                                    (CQ-03 to CQ-06)

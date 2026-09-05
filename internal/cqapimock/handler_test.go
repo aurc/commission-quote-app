@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aurc/commission-quote-app/internal/cqapi"
+	"github.com/aurc/commission-quote-app/internal/cqapimock"
 	"github.com/aurc/commission-quote-app/internal/platform/logging"
 )
 
@@ -28,7 +28,7 @@ func newServer(t *testing.T, mutate ...func(*cqapi.Config)) http.Handler {
 	for _, m := range mutate {
 		m(&cfg)
 	}
-	return cqapi.NewRouter(cfg, logging.New(logging.Options{Component: "cqapi", Output: io.Discard}))
+	return cqapi.NewRouter(cfg, logging.New(logging.Options{Component: "cqapi-mock", Output: io.Discard}))
 }
 
 func post(t *testing.T, h http.Handler, key, body string) *httptest.ResponseRecorder {
