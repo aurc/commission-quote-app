@@ -1,4 +1,4 @@
-package middleware_test
+package cqappmiddleware_test
 
 import (
 	"net/http"
@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aurc/commission-quote-app/internal/middleware"
+	"github.com/aurc/commission-quote-app/internal/cqappmiddleware"
 	"github.com/aurc/commission-quote-app/internal/platform/logging"
 )
 
@@ -16,16 +16,16 @@ func resilientMiddleware(t *testing.T, vendor *fakeVendor, logs *testBuffer) htt
 	t.Helper()
 	cfg := testConfig()
 	cfg.VendorBaseURL = vendor.URL
-	cfg.Retry = middleware.RetryConfig{Attempts: 3, Base: time.Millisecond, Cap: 2 * time.Millisecond}
-	cfg.Breaker = middleware.BreakerConfig{
+	cfg.Retry = cqappmiddleware.RetryConfig{Attempts: 3, Base: time.Millisecond, Cap: 2 * time.Millisecond}
+	cfg.Breaker = cqappmiddleware.BreakerConfig{
 		Window: 20, MinSamples: 10, Threshold: 0.5,
 		OpenFor: 10 * time.Second, Probes: 3,
 	}
 
 	log := logging.New(logging.Options{Component: "middleware", Output: logs})
-	client := middleware.NewVendorClient(cfg.VendorBaseURL, cfg.VendorAPIKey, cfg.VendorTimeout, log)
-	source := middleware.NewBreaker(middleware.NewRetrier(client, cfg.Retry, log), cfg.Breaker, log)
-	return middleware.NewRouterWith(cfg, staffFixture(t), source, log)
+	client := cqappmiddleware.NewVendorClient(cfg.VendorBaseURL, cfg.VendorAPIKey, cfg.VendorTimeout, log)
+	source := cqappmiddleware.NewBreaker(cqappmiddleware.NewRetrier(client, cfg.Retry, log), cfg.Breaker, log)
+	return cqappmiddleware.NewRouterWith(cfg, staffFixture(t), source, log)
 }
 
 // The point of the whole task: the vendor's failures should mostly not be the

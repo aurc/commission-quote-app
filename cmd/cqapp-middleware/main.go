@@ -12,14 +12,14 @@ import (
 	"os"
 	"time"
 
-	"github.com/aurc/commission-quote-app/internal/middleware"
+	"github.com/aurc/commission-quote-app/internal/cqappmiddleware"
 	"github.com/aurc/commission-quote-app/internal/platform/httpx"
 	"github.com/aurc/commission-quote-app/internal/platform/logging"
 	"github.com/aurc/commission-quote-app/internal/platform/staffdir"
 	"github.com/aurc/commission-quote-app/internal/platform/telemetry"
 )
 
-const component = "middleware"
+const component = "cqapp-middleware"
 
 func main() {
 	if err := run(context.Background()); err != nil {
@@ -30,7 +30,7 @@ func main() {
 }
 
 func run(ctx context.Context) error {
-	cfg, err := middleware.Load()
+	cfg, err := cqappmiddleware.Load()
 	if err != nil {
 		return err
 	}
@@ -70,7 +70,7 @@ func run(ctx context.Context) error {
 		slog.Duration("requestBudget", cfg.RequestBudget),
 	)
 
-	return httpx.Serve(ctx, log, middleware.NewRouter(cfg, staff, log), httpx.ServeOptions{
+	return httpx.Serve(ctx, log, cqappmiddleware.NewRouter(cfg, staff, log), httpx.ServeOptions{
 		Port:         cfg.Port,
 		WriteTimeout: cfg.RequestBudget + 5*time.Second,
 	})

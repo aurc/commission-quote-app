@@ -3,7 +3,7 @@
 //
 // It is the only component that holds the vendor credential and the only one
 // that decides whether a caller may generate a quote.
-package middleware
+package cqappmiddleware
 
 import (
 	"context"

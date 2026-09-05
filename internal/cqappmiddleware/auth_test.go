@@ -1,4 +1,4 @@
-package middleware_test
+package cqappmiddleware_test
 
 import (
 	"encoding/json"
@@ -10,7 +10,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 
-	"github.com/aurc/commission-quote-app/internal/middleware"
+	"github.com/aurc/commission-quote-app/internal/cqappmiddleware"
 )
 
 const (
@@ -39,13 +39,13 @@ func mint(t *testing.T, o tokenOpts) string {
 		o.subject = entitledSubject(t)
 	}
 	if o.scope == nil {
-		o.scope = []string{middleware.ScopeQuoteGenerate}
+		o.scope = []string{cqappmiddleware.ScopeQuoteGenerate}
 	}
 	if o.issuer == "" {
-		o.issuer = middleware.Issuer
+		o.issuer = cqappmiddleware.Issuer
 	}
 	if o.audience == "" {
-		o.audience = middleware.Audience
+		o.audience = cqappmiddleware.Audience
 	}
 	if o.expiresIn == 0 {
 		o.expiresIn = time.Minute
@@ -60,7 +60,7 @@ func mint(t *testing.T, o tokenOpts) string {
 		o.key = []byte(signingKey)
 	}
 
-	claims := middleware.Claims{
+	claims := cqappmiddleware.Claims{
 		RegisteredClaims: jwt.RegisteredClaims{
 			Issuer:   o.issuer,
 			Subject:  o.subject,
@@ -81,8 +81,8 @@ func mint(t *testing.T, o tokenOpts) string {
 	return signed
 }
 
-func testConfig() middleware.Config {
-	return middleware.Config{
+func testConfig() cqappmiddleware.Config {
+	return cqappmiddleware.Config{
 		SigningKey:    signingKey,
 		VendorAPIKey:  vendorKey,
 		VendorTimeout: 2 * time.Second,
@@ -157,10 +157,10 @@ func TestAlgorithmIsPinned(t *testing.T) {
 	h := newMiddleware(t, okVendor(t))
 
 	claims := jwt.MapClaims{
-		"iss":   middleware.Issuer,
-		"aud":   middleware.Audience,
+		"iss":   cqappmiddleware.Issuer,
+		"aud":   cqappmiddleware.Audience,
 		"sub":   entitledSubject(t),
-		"scope": []string{middleware.ScopeQuoteGenerate},
+		"scope": []string{cqappmiddleware.ScopeQuoteGenerate},
 		"exp":   time.Now().Add(time.Minute).Unix(),
 	}
 	unsigned, err := jwt.NewWithClaims(jwt.SigningMethodNone, claims).SignedString(jwt.UnsafeAllowNoneSignatureType)

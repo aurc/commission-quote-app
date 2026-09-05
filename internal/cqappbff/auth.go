@@ -3,7 +3,7 @@
 // person reads.
 //
 // It holds no business logic and no vendor credential.
-package bff
+package cqappbff
 
 import (
 	"context"

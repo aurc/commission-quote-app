@@ -1,4 +1,4 @@
-package bff
+package cqappbff
 
 import "github.com/aurc/commission-quote-app/internal/platform/httpx"
 

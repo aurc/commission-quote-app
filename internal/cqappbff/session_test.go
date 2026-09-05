@@ -1,4 +1,4 @@
-package bff_test
+package cqappbff_test
 
 import (
 	"bytes"
@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aurc/commission-quote-app/internal/bff"
+	"github.com/aurc/commission-quote-app/internal/cqappbff"
 	"github.com/aurc/commission-quote-app/internal/platform/logging"
 	"github.com/aurc/commission-quote-app/internal/platform/staffdir"
 )
@@ -40,13 +40,13 @@ func (b *logBuffer) String() string {
 
 func (b *logBuffer) Contains(s string) bool { return strings.Contains(b.String(), s) }
 
-func fixtures(t *testing.T) (*staffdir.Directory, bff.AuthProvider) {
+func fixtures(t *testing.T) (*staffdir.Directory, cqappbff.AuthProvider) {
 	t.Helper()
 	dir, err := staffdir.Load(filepath.Join("..", "..", "config", "staff.csv"))
 	if err != nil {
 		t.Fatalf("staff fixture must load: %v", err)
 	}
-	auth, err := bff.NewFixtureAuth(dir, filepath.Join("..", "..", "config", "credentials.csv"))
+	auth, err := cqappbff.NewFixtureAuth(dir, filepath.Join("..", "..", "config", "credentials.csv"))
 	if err != nil {
 		t.Fatalf("credentials fixture must load: %v", err)
 	}
@@ -90,7 +90,7 @@ func newStack(t *testing.T, middleware http.HandlerFunc) *stack {
 	dir, auth := fixtures(t)
 	_ = dir
 
-	cfg := bff.Config{
+	cfg := cqappbff.Config{
 		MiddlewareBaseURL: s.middleware.URL,
 		SigningKey:        signingKey,
 		SessionTTL:        30 * time.Minute,
@@ -99,9 +99,9 @@ func newStack(t *testing.T, middleware http.HandlerFunc) *stack {
 		CookieSecure:      false,
 	}
 	log := logging.New(logging.Options{Component: "bff", Output: s.logs})
-	client := bff.NewMiddlewareClient(cfg.MiddlewareBaseURL, cfg.SigningKey, cfg.TokenTTL, cfg.RequestTimeout, log)
+	client := cqappbff.NewMiddlewareClient(cfg.MiddlewareBaseURL, cfg.SigningKey, cfg.TokenTTL, cfg.RequestTimeout, log)
 
-	s.Handler = bff.NewRouter(cfg, auth, bff.NewSessionStore(cfg.SessionTTL), client, log)
+	s.Handler = cqappbff.NewRouter(cfg, auth, cqappbff.NewSessionStore(cfg.SessionTTL), client, log)
 	return s
 }
 
@@ -145,7 +145,7 @@ func signIn(t *testing.T, h http.Handler, staffID, password string) *http.Cookie
 		t.Fatalf("sign in failed: %d %s", rec.Code, rec.Body)
 	}
 	for _, c := range rec.Result().Cookies() {
-		if c.Name == bff.SessionCookie {
+		if c.Name == cqappbff.SessionCookie {
 			return c
 		}
 	}
@@ -176,7 +176,7 @@ func TestSignInWithTheCorrectPassword(t *testing.T) {
 
 	var cookie *http.Cookie
 	for _, c := range rec.Result().Cookies() {
-		if c.Name == bff.SessionCookie {
+		if c.Name == cqappbff.SessionCookie {
 			cookie = c
 		}
 	}
@@ -228,7 +228,7 @@ func TestSignInFailuresAreIndistinguishable(t *testing.T) {
 				t.Fatalf("status = %d, want 401: %s", rec.Code, rec.Body)
 			}
 			for _, c := range rec.Result().Cookies() {
-				if c.Name == bff.SessionCookie && c.Value != "" {
+				if c.Name == cqappbff.SessionCookie && c.Value != "" {
 					t.Error("a failed sign in must not set a session")
 				}
 			}

@@ -1,4 +1,4 @@
-package bff_test
+package cqappbff_test
 
 import (
 	"encoding/json"

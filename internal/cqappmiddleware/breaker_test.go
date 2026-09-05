@@ -1,4 +1,4 @@
-package middleware_test
+package cqappmiddleware_test
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aurc/commission-quote-app/internal/middleware"
+	"github.com/aurc/commission-quote-app/internal/cqappmiddleware"
 	"github.com/aurc/commission-quote-app/internal/platform/httpx"
 	"github.com/aurc/commission-quote-app/internal/platform/logging"
 )
@@ -21,11 +21,11 @@ type scriptedSource struct {
 	calls int
 }
 
-func (s *scriptedSource) Quote(context.Context, middleware.QuoteRequest) (middleware.Quote, error) {
+func (s *scriptedSource) Quote(context.Context, cqappmiddleware.QuoteRequest) (cqappmiddleware.Quote, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.calls++
-	return middleware.Quote{QuoteID: "q"}, s.err
+	return cqappmiddleware.Quote{QuoteID: "q"}, s.err
 }
 
 func (s *scriptedSource) fail(err error) {
@@ -57,29 +57,29 @@ func (c *fakeClock) advance(d time.Duration) {
 	c.t = c.t.Add(d)
 }
 
-func breakerOver(t *testing.T, cfg middleware.BreakerConfig) (*scriptedSource, *middleware.Breaker, *fakeClock) {
+func breakerOver(t *testing.T, cfg cqappmiddleware.BreakerConfig) (*scriptedSource, *cqappmiddleware.Breaker, *fakeClock) {
 	t.Helper()
 	src := &scriptedSource{}
 	log := logging.New(logging.Options{Component: "middleware", Output: io.Discard})
-	b := middleware.NewBreaker(src, cfg, log)
+	b := cqappmiddleware.NewBreaker(src, cfg, log)
 	clock := &fakeClock{t: time.Now()}
-	middleware.SetBreakerClock(b, clock.now)
+	cqappmiddleware.SetBreakerClock(b, clock.now)
 	return src, b, clock
 }
 
-func testBreakerConfig() middleware.BreakerConfig {
-	return middleware.BreakerConfig{
+func testBreakerConfig() cqappmiddleware.BreakerConfig {
+	return cqappmiddleware.BreakerConfig{
 		Window: 20, MinSamples: 10, Threshold: 0.5,
 		OpenFor: 10 * time.Second, Probes: 3,
 	}
 }
 
 func vendorDown() error {
-	return middleware.MarkTransient(httpx.UpstreamUnavailable(errors.New("vendor down")))
+	return cqappmiddleware.MarkTransient(httpx.UpstreamUnavailable(errors.New("vendor down")))
 }
 
-func call(b *middleware.Breaker) error {
-	_, err := b.Quote(context.Background(), middleware.QuoteRequest{})
+func call(b *cqappmiddleware.Breaker) error {
+	_, err := b.Quote(context.Background(), cqappmiddleware.QuoteRequest{})
 	return err
 }
 
@@ -177,7 +177,7 @@ func TestAFailingProbeReopensTheCircuit(t *testing.T) {
 // Counting it would let one bad request shape block valid traffic.
 func TestRequestFaultsDoNotTripTheBreaker(t *testing.T) {
 	src, b, _ := breakerOver(t, testBreakerConfig())
-	src.fail(middleware.MarkRequestFault(httpx.UpstreamContract(errors.New("vendor rejected it"))))
+	src.fail(cqappmiddleware.MarkRequestFault(httpx.UpstreamContract(errors.New("vendor rejected it"))))
 
 	for range 30 {
 		_ = call(b)

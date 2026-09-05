@@ -19,7 +19,7 @@ Go 1.26, single module. `golangci-lint` is used if installed and skipped if not.
 |---|---|
 | `make check` | fmt, vet, `go test -race ./...`. Run before committing |
 | `make test` | Tests with the race detector |
-| `go test ./internal/middleware/ -run TestAuthenticationFailuresAre401` | A single test |
+| `go test ./internal/cqappmiddleware/ -run TestAuthenticationFailuresAre401` | A single test |
 | `make cover` | Coverage per package |
 | `make env` | Create `.env` from `.env.example`, needed before any `run-` target |
 | `make run-cqapi-mock`, `make run-middleware` | Run one service natively |
@@ -85,7 +85,7 @@ cmd/
   cqapi-mock/      the vendor stand in, named for what it is
 internal/
   platform/               log, config, otel, secrets, http helpers
-  bff/  middleware/  cqapimock/
+  cqappbff/  cqappmiddleware/  cqapimock/
 web/                      React + Vite
 deploy/                   nginx.conf, docker-compose.yml, Dockerfiles
 ```

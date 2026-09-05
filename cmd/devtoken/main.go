@@ -26,7 +26,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aurc/commission-quote-app/internal/middleware"
+	"github.com/aurc/commission-quote-app/internal/cqappmiddleware"
 	"github.com/aurc/commission-quote-app/internal/platform/authtoken"
 	"github.com/aurc/commission-quote-app/internal/platform/secrets"
 	"github.com/aurc/commission-quote-app/internal/platform/staffdir"
@@ -34,7 +34,7 @@ import (
 
 func main() {
 	subject := flag.String("sub", "", "staff subject, defaults to the first entitled staff member in the fixture")
-	scope := flag.String("scope", middleware.ScopeQuoteGenerate, "space separated scopes to request, empty for none")
+	scope := flag.String("scope", cqappmiddleware.ScopeQuoteGenerate, "space separated scopes to request, empty for none")
 	ttl := flag.Duration("ttl", time.Minute, "how long the token is valid for")
 	flag.Parse()
 
@@ -73,9 +73,9 @@ func firstEntitled() (string, error) {
 		return "", fmt.Errorf("%w (or pass -sub)", err)
 	}
 	for _, s := range dir.All() {
-		if slices.Contains(s.Scopes, middleware.ScopeQuoteGenerate) {
+		if slices.Contains(s.Scopes, cqappmiddleware.ScopeQuoteGenerate) {
 			return s.ID, nil
 		}
 	}
-	return "", fmt.Errorf("no staff member in %s holds %s, pass -sub", path, middleware.ScopeQuoteGenerate)
+	return "", fmt.Errorf("no staff member in %s holds %s, pass -sub", path, cqappmiddleware.ScopeQuoteGenerate)
 }

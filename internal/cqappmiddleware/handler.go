@@ -1,4 +1,4 @@
-package middleware
+package cqappmiddleware
 
 import (
 	"io"
@@ -10,7 +10,7 @@ import (
 )
 
 // component names this service in logs and spans.
-const component = "middleware"
+const component = "cqapp-middleware"
 
 // maxRequestBody bounds an inbound body. The published request is three fields.
 const maxRequestBody = 64 << 10

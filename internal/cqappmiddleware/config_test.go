@@ -1,10 +1,10 @@
-package middleware_test
+package cqappmiddleware_test
 
 import (
 	"strings"
 	"testing"
 
-	"github.com/aurc/commission-quote-app/internal/middleware"
+	"github.com/aurc/commission-quote-app/internal/cqappmiddleware"
 )
 
 // A short HS256 key is accepted by the algorithm but is weaker than the MAC it
@@ -14,7 +14,7 @@ func TestShortSigningKeyIsRejectedAtStartup(t *testing.T) {
 	t.Setenv("CQAPI_API_KEY", "vendor-key")
 	t.Setenv("BFF_MIDDLEWARE_SIGNING_KEY", "too-short")
 
-	_, err := middleware.Load()
+	_, err := cqappmiddleware.Load()
 
 	if err == nil {
 		t.Fatal("a signing key shorter than 32 bytes must fail at startup")
@@ -30,7 +30,7 @@ func TestAdequateSigningKeyIsAccepted(t *testing.T) {
 	// Assert the default, so clear anything a developer's .env may have set.
 	t.Setenv("CQAPI_BASE_URL", "")
 
-	cfg, err := middleware.Load()
+	cfg, err := cqappmiddleware.Load()
 	if err != nil {
 		t.Fatalf("a 32 byte key must be accepted: %v", err)
 	}
@@ -44,7 +44,7 @@ func TestMissingSecretsAreAllReported(t *testing.T) {
 	t.Setenv("CQAPI_API_KEY", "")
 	t.Setenv("BFF_MIDDLEWARE_SIGNING_KEY", "")
 
-	_, err := middleware.Load()
+	_, err := cqappmiddleware.Load()
 	if err == nil {
 		t.Fatal("expected an error")
 	}
@@ -72,7 +72,7 @@ func TestVendorURLMustBeEncryptedOutsideLocalhost(t *testing.T) {
 			t.Setenv("BFF_MIDDLEWARE_SIGNING_KEY", strings.Repeat("k", 32))
 			t.Setenv("CQAPI_BASE_URL", url)
 
-			_, err := middleware.Load()
+			_, err := cqappmiddleware.Load()
 			if err == nil {
 				t.Fatalf("%s must be refused: the api-key would cross the network in clear", url)
 			}
@@ -94,7 +94,7 @@ func TestVendorURLMustBeEncryptedOutsideLocalhost(t *testing.T) {
 			t.Setenv("BFF_MIDDLEWARE_SIGNING_KEY", strings.Repeat("k", 32))
 			t.Setenv("CQAPI_BASE_URL", url)
 
-			if _, err := middleware.Load(); err != nil {
+			if _, err := cqappmiddleware.Load(); err != nil {
 				t.Errorf("%s should be accepted: %v", url, err)
 			}
 		})
@@ -107,7 +107,7 @@ func TestBreakerThatCouldNeverTripIsRejected(t *testing.T) {
 	t.Setenv("MIDDLEWARE_BREAKER_WINDOW", "10")
 	t.Setenv("MIDDLEWARE_BREAKER_MIN_SAMPLES", "20")
 
-	_, err := middleware.Load()
+	_, err := cqappmiddleware.Load()
 
 	if err == nil {
 		t.Fatal("a minimum sample count larger than the window means a breaker that can never trip")

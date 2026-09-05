@@ -46,19 +46,26 @@ cmd/
   cqapp-bff/         BFF entry point                       (CQ-06)
   cqapi-mock/        vendor stand in, named for what it is (CQ-03)
   devtoken/          development only, see below
+  devstaff/          development only, adds a staff member
 internal/
-  platform/   logging, config, secrets, telemetry, money, http  (CQ-02)
-  middleware/ cqapimock/
+  platform/         shared: logging, config, secrets, telemetry, money, http, tokens
+  cqappbff/         -> cmd/cqapp-bff
+  cqappmiddleware/  -> cmd/cqapp-middleware
+  cqapimock/        -> cmd/cqapi-mock
 web/          React SPA                                    (CQ-07)
 deploy/       nginx, Dockerfiles, docker compose            (CQ-08)
-config/       staff.csv, the identity and entitlement fixture
+config/       staff.csv and credentials.csv, the identity fixtures
 design/       assumptions, contract, diagram
 tasks/        task register and per task plans
 source/       the original challenge brief
 ```
 
-Components we own carry the `cqapp-` prefix. `cqapi-mock` does not, because it is not ours: it
-stands in for the vendor and is deleted when the real one arrives.
+Components we own carry the `cqapp-` prefix, in `cmd/` and in `internal/` alike, so a package name
+says which service it belongs to. `cqapi-mock` does not carry it, because it is not ours: it stands in
+for the vendor and is deleted when the real one arrives.
+
+Directory names use a hyphen where they become an artifact, a binary, an image or a compose service.
+Go package names cannot, so `cmd/cqapp-bff` pairs with `internal/cqappbff`.
 
 ## Getting started
 

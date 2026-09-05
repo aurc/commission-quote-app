@@ -15,7 +15,7 @@ Contract in `design/contract.md` sections 5 and 7.
 
 ```
 cmd/cqapp-bff/main.go
-internal/bff/
+internal/cqappbff/
   session.go     cookie, in memory store, AuthProvider over the staff fixture
   token.go       cookie to bearer exchange
   quotes.go      proxy to the Middleware

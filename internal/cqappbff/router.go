@@ -1,4 +1,4 @@
-package bff
+package cqappbff
 
 import (
 	"context"
@@ -12,7 +12,7 @@ import (
 	"github.com/aurc/commission-quote-app/internal/platform/telemetry"
 )
 
-const component = "bff"
+const component = "cqapp-bff"
 
 // Handler serves the browser facing API.
 type Handler struct {

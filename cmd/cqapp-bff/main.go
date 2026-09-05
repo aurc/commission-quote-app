@@ -12,14 +12,14 @@ import (
 	"os"
 	"time"
 
-	"github.com/aurc/commission-quote-app/internal/bff"
+	"github.com/aurc/commission-quote-app/internal/cqappbff"
 	"github.com/aurc/commission-quote-app/internal/platform/httpx"
 	"github.com/aurc/commission-quote-app/internal/platform/logging"
 	"github.com/aurc/commission-quote-app/internal/platform/staffdir"
 	"github.com/aurc/commission-quote-app/internal/platform/telemetry"
 )
 
-const component = "bff"
+const component = "cqapp-bff"
 
 func main() {
 	if err := run(context.Background()); err != nil {
@@ -29,7 +29,7 @@ func main() {
 }
 
 func run(ctx context.Context) error {
-	cfg, err := bff.Load()
+	cfg, err := cqappbff.Load()
 	if err != nil {
 		return err
 	}
@@ -58,13 +58,13 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	auth, err := bff.NewFixtureAuth(staff, cfg.CredentialsFile)
+	auth, err := cqappbff.NewFixtureAuth(staff, cfg.CredentialsFile)
 	if err != nil {
 		return err
 	}
 
-	sessions := bff.NewSessionStore(cfg.SessionTTL)
-	quotes := bff.NewMiddlewareClient(cfg.MiddlewareBaseURL, cfg.SigningKey, cfg.TokenTTL, cfg.RequestTimeout, log)
+	sessions := cqappbff.NewSessionStore(cfg.SessionTTL)
+	quotes := cqappbff.NewMiddlewareClient(cfg.MiddlewareBaseURL, cfg.SigningKey, cfg.TokenTTL, cfg.RequestTimeout, log)
 
 	log.InfoContext(ctx, "starting bff",
 		slog.String("middlewareBaseUrl", cfg.MiddlewareBaseURL),
@@ -74,7 +74,7 @@ func run(ctx context.Context) error {
 		slog.Bool("cookieSecure", cfg.CookieSecure),
 	)
 
-	return httpx.Serve(ctx, log, bff.NewRouter(cfg, auth, sessions, quotes, log), httpx.ServeOptions{
+	return httpx.Serve(ctx, log, cqappbff.NewRouter(cfg, auth, sessions, quotes, log), httpx.ServeOptions{
 		Port:         cfg.Port,
 		WriteTimeout: cfg.RequestTimeout + 5*time.Second,
 	})
