@@ -359,8 +359,11 @@ if __name__ == '__main__':
         open(filename, 'w').write(content)
         written.append(filename)
 
-    # Phones get the four screens where the layout actually has to change.
-    for name in ('SignIn', 'QuoteForm', 'QuoteInvalid', 'Result'):
+    # Every screen state gets a phone counterpart. A half covered set invites
+    # the question "what does this one look like on a phone" for each one that
+    # is missing, and the failure states are where narrow layouts break.
+    for name in ('SignIn', 'SignInRefused', 'QuoteForm', 'QuoteInvalid',
+                 'QuoteSubmitting', 'Result', 'NotEntitled', 'Unavailable'):
         content = build(mobile=True)[name]
         filename = f'Phone{name}.dc.html'
         open(filename, 'w').write(content)

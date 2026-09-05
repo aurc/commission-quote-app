@@ -20,7 +20,7 @@ changes anything, an update to the tokens in `contract.md`.
 
 ## Artboards
 
-Thirteen, covering every state `contract.md` sections 5 and 10 specify. The error states are the point:
+Seventeen, covering every state `contract.md` sections 5 and 10 specify. The error states are the point:
 they are the ones a design usually leaves until last and the brief grades explicitly.
 
 | # | Artboard | Shows |
@@ -34,7 +34,7 @@ they are the ones a design usually leaves until last and the brief grades explic
 | 7 | Quote result | `quoteId`, `commissionRate` as a percentage, `totalCommission` as AUD |
 | 8 | Not entitled | The `403`, in words, with the correlation id |
 | 9 | Service unavailable | The `502`, `503` and `504` family, and what a user can do about it |
-| 10-13 | Phone, 390 wide | Sign in, quote form, invalid and result, the four screens whose layout changes |
+| 10-17 | Phone, 390 wide | Every state above, at a real 390x844 viewport |
 
 ## Constraints the canvas has to respect
 
@@ -57,8 +57,12 @@ CQ-07 implements against the approved canvas. Where the two disagree, the canvas
 
 ## Verification
 
-The canvas covers all nine artboards, uses only tokens from `contract.md` section 10, carries no
-Bendigo mark, and every error artboard shows a correlation id.
+The canvas covers every state on desk and phone, uses only tokens from `contract.md` section 10,
+carries no Bendigo mark, and every error artboard shows a correlation id. Each screen renders exactly
+one primary control besides sign out.
+
+Phone frames are a real 390x844 viewport, so a frame that fits its content is evidence rather than a
+claim.
 
 ## Canvas
 

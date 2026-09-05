@@ -15,7 +15,7 @@ mocked external vendor API.
 
 > **These are design mockups, not the running application.** The API works end to end today; the
 > front end is CQ-07, and these are replaced with real screenshots when it ships. The full canvas,
-> thirteen artboards covering every state on desk and phone, is [the design handoff](tasks/CQ-07.1/plan.md).
+> seventeen artboards covering every state on desk and phone, is [the design handoff](tasks/CQ-07.1/plan.md).
 
 > Status: implementation in progress. The API is complete; the front end is next. The single
 > `docker compose up` path lands with CQ-08; native development works today.
