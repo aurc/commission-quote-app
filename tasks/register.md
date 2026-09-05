@@ -66,8 +66,8 @@ responsive.
 
 ### CQ-08 Edge, compose, README
 
-nginx single origin with SPA fallback and `/api` routing, Dockerfiles, `docker-compose.yml`,
-README run and test instructions, AI usage transparency section.
+nginx single origin with SPA fallback and `/api` routing, Dockerfiles, `docker compose`, a Postman
+collection per component, prerequisites for macOS, and the README run and test instructions.
 
 ## Workflow
 

@@ -130,3 +130,19 @@ request. Re-tested: restarting both backends no longer disturbs the Edge.
 
 This is the reason the task is verified by running it rather than by reading it. Nothing in the
 compose file or the nginx config looked wrong.
+
+## Postman collection
+
+Added during CQ-08 at review's suggestion: `postman/`, one folder per component so each API can be
+exercised on its own.
+
+Every request carries assertions, so the collection is a smoke test as well as a set of examples, and
+`make smoke` runs it headlessly with newman. 19 requests, 29 assertions.
+
+The Middleware folder mints its own HS256 bearer in a pre-request script, so that service can be
+driven without the BFF and without `make dev-token`.
+
+Writing it found a bug in the collection rather than the application. The pre-request script read
+`pm.environment.get('scope') || 'quote:generate'`, and an empty scope is falsy, so the case testing a
+token that does not request the scope still requested it and returned 200. The assertion caught it.
+An empty value that is also a meaningful value cannot go through a `||` default.

@@ -41,6 +41,11 @@ test: ## Run Go tests with the race detector
 test-web: ## Run front end tests
 	@cd web && npm test --silent
 
+.PHONY: smoke
+smoke: ## Run the Postman collection against a running stack
+	@cd web && npx --yes newman run ../postman/commission-quote.postman_collection.json \
+		-e ../postman/local.postman_environment.json --reporters cli
+
 .PHONY: cover
 cover: ## Report test coverage per package
 	$(GO) test -cover ./...

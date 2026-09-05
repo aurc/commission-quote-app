@@ -1,0 +1,811 @@
+{
+  "info": {
+    "name": "Commission Quote App",
+    "description": "Every endpoint in the system, one folder per component, so each API can be exercised on its own.\n\nRun the BFF folder against the compose stack on 8080. The Middleware and vendor folders need those services run natively, because compose deliberately publishes only the Edge.\n\nRequests carry assertions, so `newman run` is a smoke test as well as a set of examples: `make smoke`.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "BFF (browser facing)",
+      "description": "What the front end talks to. Owns the staff session, exchanges it for a bearer the Middleware accepts, and writes the wording a person reads.\n\nPostman stores the session cookie automatically, so sign in once and the quote requests below work.",
+      "item": [
+        {
+          "name": "Sign in",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{bffUrl}}/api/session",
+            "description": "Starts a session. The cookie is HttpOnly; Postman keeps it in its cookie jar.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"staffId\": \"{{staffId}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"returns the staff member\", () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.staffId).to.eql(pm.environment.get(\"staffId\"));",
+                  "  pm.expect(body.name).to.be.a(\"string\").and.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Current session",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{bffUrl}}/api/session",
+            "description": "Who is signed in. 401 when the cookie is missing or expired."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Generate a quote",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{bffUrl}}/api/v1/quotes",
+            "description": "The whole path: session to bearer, Middleware, vendor.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"loanAmount\": 250000.0,\n  \"loanTermInMonths\": 240,\n  \"riskBand\": \"B\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"returns the vendor figures\", () => {",
+                  "  const q = pm.response.json();",
+                  "  pm.expect(q.quoteId).to.be.a(\"string\").and.not.empty;",
+                  "  pm.expect(q.commissionRate).to.be.a(\"number\");",
+                  "  pm.expect(q.totalCommission).to.be.a(\"number\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Generate a quote, every field invalid",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{bffUrl}}/api/v1/quotes",
+            "description": "Validation is authoritative in the Middleware and reports every failure at once.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"loanAmount\": 1,\n  \"loanTermInMonths\": 9999,\n  \"riskBand\": \"Z\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"reports all three fields, not the first\", () => {",
+                  "  const e = pm.response.json().error;",
+                  "  pm.expect(e.code).to.eql(\"VALIDATION_FAILED\");",
+                  "  const fields = e.details.map((d) => d.field).sort();",
+                  "  pm.expect(fields).to.eql([\"loanAmount\", \"loanTermInMonths\", \"riskBand\"]);",
+                  "});",
+                  "pm.test(\"carries a correlation id\", () => {",
+                  "  pm.expect(pm.response.json().error.correlationId).to.be.a(\"string\").and.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Sign out",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{bffUrl}}/api/session",
+            "description": "Invalidates the session server side, not just the cookie."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Generate a quote after signing out",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{bffUrl}}/api/v1/quotes",
+            "description": "A signed out cookie must not still work.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"loanAmount\": 250000.0,\n  \"loanTermInMonths\": 240,\n  \"riskBand\": \"B\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 401\", () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Sign in with the wrong password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{bffUrl}}/api/session",
+            "description": "A wrong password and an unknown staff id give the same answer, so neither reveals who exists.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"staffId\": \"{{staffId}}\",\n  \"password\": \"not-the-password\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"does not reveal which was wrong\", () => {",
+                  "  pm.expect(pm.response.json().error.code).to.eql(\"UNAUTHENTICATED\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{bffUrl}}/healthz",
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Middleware (internal)",
+      "description": "The only component that holds the vendor credential and the only one that decides whether a caller may generate a quote.\n\nNot browser facing and not published by compose, so these run only against a natively run Middleware on 8082. Each request mints its own bearer in a pre-request script, so no BFF is needed.",
+      "item": [
+        {
+          "name": "Generate a quote",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bearer}}"
+              }
+            ],
+            "url": "{{middlewareUrl}}/v1/quotes",
+            "description": "An entitled caller. 200, because this service creates and stores nothing.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"loanAmount\": 250000.0,\n  \"loanTermInMonths\": 240,\n  \"riskBand\": \"B\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Mints the HS256 bearer the Middleware expects, so this folder can be run",
+                  "// without the BFF. Same claims as contract.md section 7.",
+                  "const key = pm.environment.get('signingKey');",
+                  "const b64 = (obj) => CryptoJS.enc.Base64.stringify(CryptoJS.enc.Utf8.parse(JSON.stringify(obj)))",
+                  "  .replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=+$/, '');",
+                  "",
+                  "const now = Math.floor(Date.now() / 1000);",
+                  "const header = b64({ alg: 'HS256', typ: 'JWT' });",
+                  "const claims = b64({",
+                  "  iss: 'cqapp-bff',",
+                  "  aud: 'cqapp-middleware',",
+                  "  sub: pm.environment.get('staffId'),",
+                  "  // An empty scope is a real case, so it cannot fall through a || default:",
+                  "  //   '' || 'quote:generate' is 'quote:generate', which is the opposite of the test.",
+                  "  scope: (pm.environment.has('scope') ? pm.environment.get('scope') : 'quote:generate')",
+                  "    .split(' ').filter(Boolean),",
+                  "  iat: now,",
+                  "  exp: now + 60,",
+                  "  jti: 'postman-' + now,",
+                  "});",
+                  "",
+                  "const signature = CryptoJS.HmacSHA256(header + '.' + claims, key);",
+                  "const sig = CryptoJS.enc.Base64.stringify(signature)",
+                  "  .replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=+$/, '');",
+                  "",
+                  "pm.environment.set('bearer', header + '.' + claims + '.' + sig);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "No bearer token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{middlewareUrl}}/v1/quotes",
+            "description": "Identity not established.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"loanAmount\": 250000.0,\n  \"loanTermInMonths\": 240,\n  \"riskBand\": \"B\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"is UNAUTHENTICATED\", () => pm.expect(pm.response.json().error.code).to.eql(\"UNAUTHENTICATED\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Entitled subject, scope not requested",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bearer}}"
+              }
+            ],
+            "url": "{{middlewareUrl}}/v1/quotes",
+            "description": "A valid token that does not ask for quote:generate.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"loanAmount\": 250000.0,\n  \"loanTermInMonths\": 240,\n  \"riskBand\": \"B\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.environment.set('scope', '');",
+                  "// Mints the HS256 bearer the Middleware expects, so this folder can be run",
+                  "// without the BFF. Same claims as contract.md section 7.",
+                  "const key = pm.environment.get('signingKey');",
+                  "const b64 = (obj) => CryptoJS.enc.Base64.stringify(CryptoJS.enc.Utf8.parse(JSON.stringify(obj)))",
+                  "  .replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=+$/, '');",
+                  "",
+                  "const now = Math.floor(Date.now() / 1000);",
+                  "const header = b64({ alg: 'HS256', typ: 'JWT' });",
+                  "const claims = b64({",
+                  "  iss: 'cqapp-bff',",
+                  "  aud: 'cqapp-middleware',",
+                  "  sub: pm.environment.get('staffId'),",
+                  "  // An empty scope is a real case, so it cannot fall through a || default:",
+                  "  //   '' || 'quote:generate' is 'quote:generate', which is the opposite of the test.",
+                  "  scope: (pm.environment.has('scope') ? pm.environment.get('scope') : 'quote:generate')",
+                  "    .split(' ').filter(Boolean),",
+                  "  iat: now,",
+                  "  exp: now + 60,",
+                  "  jti: 'postman-' + now,",
+                  "});",
+                  "",
+                  "const signature = CryptoJS.HmacSHA256(header + '.' + claims, key);",
+                  "const sig = CryptoJS.enc.Base64.stringify(signature)",
+                  "  .replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=+$/, '');",
+                  "",
+                  "pm.environment.set('bearer', header + '.' + claims + '.' + sig);",
+                  "pm.environment.unset('scope');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Unentitled subject claiming the scope",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bearer}}"
+              }
+            ],
+            "url": "{{middlewareUrl}}/v1/quotes",
+            "description": "The test that matters. The token asks for the scope; the Middleware's own entitlement source does not grant it to this subject, so it is refused. A scope claim is a request, never a grant.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"loanAmount\": 250000.0,\n  \"loanTermInMonths\": 240,\n  \"riskBand\": \"B\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.environment.set('staffId', pm.environment.get('unentitledStaffId'));",
+                  "// Mints the HS256 bearer the Middleware expects, so this folder can be run",
+                  "// without the BFF. Same claims as contract.md section 7.",
+                  "const key = pm.environment.get('signingKey');",
+                  "const b64 = (obj) => CryptoJS.enc.Base64.stringify(CryptoJS.enc.Utf8.parse(JSON.stringify(obj)))",
+                  "  .replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=+$/, '');",
+                  "",
+                  "const now = Math.floor(Date.now() / 1000);",
+                  "const header = b64({ alg: 'HS256', typ: 'JWT' });",
+                  "const claims = b64({",
+                  "  iss: 'cqapp-bff',",
+                  "  aud: 'cqapp-middleware',",
+                  "  sub: pm.environment.get('staffId'),",
+                  "  // An empty scope is a real case, so it cannot fall through a || default:",
+                  "  //   '' || 'quote:generate' is 'quote:generate', which is the opposite of the test.",
+                  "  scope: (pm.environment.has('scope') ? pm.environment.get('scope') : 'quote:generate')",
+                  "    .split(' ').filter(Boolean),",
+                  "  iat: now,",
+                  "  exp: now + 60,",
+                  "  jti: 'postman-' + now,",
+                  "});",
+                  "",
+                  "const signature = CryptoJS.HmacSHA256(header + '.' + claims, key);",
+                  "const sig = CryptoJS.enc.Base64.stringify(signature)",
+                  "  .replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=+$/, '');",
+                  "",
+                  "pm.environment.set('bearer', header + '.' + claims + '.' + sig);",
+                  "pm.environment.set('staffId', pm.environment.get('entitledStaffId'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"is FORBIDDEN, not UNAUTHENTICATED\", () => {",
+                  "  pm.expect(pm.response.json().error.code).to.eql(\"FORBIDDEN\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Invalid loan details",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{bearer}}"
+              }
+            ],
+            "url": "{{middlewareUrl}}/v1/quotes",
+            "description": "Authoritative validation. Every failure reported together.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"loanAmount\": 999.99,\n  \"loanTermInMonths\": 5,\n  \"riskBand\": \"D\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Mints the HS256 bearer the Middleware expects, so this folder can be run",
+                  "// without the BFF. Same claims as contract.md section 7.",
+                  "const key = pm.environment.get('signingKey');",
+                  "const b64 = (obj) => CryptoJS.enc.Base64.stringify(CryptoJS.enc.Utf8.parse(JSON.stringify(obj)))",
+                  "  .replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=+$/, '');",
+                  "",
+                  "const now = Math.floor(Date.now() / 1000);",
+                  "const header = b64({ alg: 'HS256', typ: 'JWT' });",
+                  "const claims = b64({",
+                  "  iss: 'cqapp-bff',",
+                  "  aud: 'cqapp-middleware',",
+                  "  sub: pm.environment.get('staffId'),",
+                  "  // An empty scope is a real case, so it cannot fall through a || default:",
+                  "  //   '' || 'quote:generate' is 'quote:generate', which is the opposite of the test.",
+                  "  scope: (pm.environment.has('scope') ? pm.environment.get('scope') : 'quote:generate')",
+                  "    .split(' ').filter(Boolean),",
+                  "  iat: now,",
+                  "  exp: now + 60,",
+                  "  jti: 'postman-' + now,",
+                  "});",
+                  "",
+                  "const signature = CryptoJS.HmacSHA256(header + '.' + claims, key);",
+                  "const sig = CryptoJS.enc.Base64.stringify(signature)",
+                  "  .replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=+$/, '');",
+                  "",
+                  "pm.environment.set('bearer', header + '.' + claims + '.' + sig);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 400\", () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{middlewareUrl}}/healthz",
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Vendor mock (not ours)",
+      "description": "The stand in for the external Commission Quote API, deleted when the real one exists.\n\nNot published by compose, so these run against a natively run mock on 8083. Note the vendor returns 201 and its own error shape: translating both is the Middleware's job.",
+      "item": [
+        {
+          "name": "Generate a quote",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "api-key",
+                "value": "{{apiKey}}"
+              }
+            ],
+            "url": "{{vendorUrl}}/v1/quotes",
+            "description": "201, because the vendor is modelled as recording what it issues.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"loanAmount\": 250000.0,\n  \"loanTermInMonths\": 240,\n  \"riskBand\": \"B\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"prices band B over 240 months at 1.80%\", () => {",
+                  "  const q = pm.response.json();",
+                  "  pm.expect(q.commissionRate).to.eql(0.018);",
+                  "  pm.expect(q.totalCommission).to.eql(4500);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Missing api-key",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{vendorUrl}}/v1/quotes",
+            "description": "Rejected with an empty body and no hint as to what was wrong.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"loanAmount\": 250000.0,\n  \"loanTermInMonths\": 240,\n  \"riskBand\": \"B\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"gives nothing away\", () => {",
+                  "  pm.expect(pm.response.text()).to.be.empty;",
+                  "  pm.expect(pm.response.headers.has(\"WWW-Authenticate\")).to.be.false;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Wrong api-key",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "api-key",
+                "value": "not-the-key"
+              }
+            ],
+            "url": "{{vendorUrl}}/v1/quotes",
+            "description": "Indistinguishable from a missing key, deliberately.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"loanAmount\": 250000.0,\n  \"loanTermInMonths\": 240,\n  \"riskBand\": \"B\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 401\", () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Malformed request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "api-key",
+                "value": "{{apiKey}}"
+              }
+            ],
+            "url": "{{vendorUrl}}/v1/quotes",
+            "description": "The vendor validates the shape it publishes, not our business ranges.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"loanAmount\": 999.999,\n  \"loanTermInMonths\": 240,\n  \"riskBand\": \"B\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"uses the vendor error shape, not ours\", () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.error).to.be.a(\"string\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{vendorUrl}}/healthz",
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
