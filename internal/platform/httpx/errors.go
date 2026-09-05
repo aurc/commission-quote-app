@@ -6,6 +6,7 @@ package httpx
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -177,8 +178,11 @@ type body struct {
 // is not an *Error is treated as internal, so an unexpected error can never leak
 // its text to a caller.
 func WriteError(ctx context.Context, w http.ResponseWriter, log *slog.Logger, err error) {
-	e, ok := err.(*Error)
-	if !ok {
+	// errors.As, not a type assertion: callers wrap these to carry classification
+	// alongside the response mapping, and a wrapped error must still render as
+	// itself rather than collapsing to an internal 500.
+	var e *Error
+	if !errors.As(err, &e) {
 		e = Internal(err)
 	}
 

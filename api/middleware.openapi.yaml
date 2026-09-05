@@ -134,6 +134,25 @@ paths:
                   code: UPSTREAM_UNAVAILABLE
                   message: upstream quote provider unavailable
                   correlationId: 4b1c9f2e7a3d5c81
+        "503":
+          description: >
+            Calls to the vendor are suspended by the circuit breaker after a
+            sustained failure rate. `Retry-After` says how long the caller should
+            wait. Nothing was sent upstream.
+          headers:
+            Retry-After:
+              description: Seconds until calls resume.
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: UPSTREAM_CIRCUIT_OPEN
+                  message: upstream calls suspended by circuit breaker
+                  correlationId: 4b1c9f2e7a3d5c81
         "504":
           description: The time budget for the vendor call was exhausted.
           content:

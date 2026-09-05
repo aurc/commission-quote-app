@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -174,5 +175,24 @@ func TestErrorUnwrapsToCause(t *testing.T) {
 	cause := errors.New("root")
 	if !errors.Is(httpx.UpstreamUnavailable(cause), cause) {
 		t.Error("Error must unwrap to its cause")
+	}
+}
+
+// Callers wrap these errors to carry classification, such as whether a failure
+// may be retried. A wrapped error must still render as itself.
+func TestWrappedErrorStillRendersAsItself(t *testing.T) {
+	sentinel := errors.New("transient")
+	wrapped := fmt.Errorf("%w: %w", sentinel, httpx.UpstreamTimeout(errors.New("deadline")))
+
+	rec, body, _ := write(t, wrapped, context.Background())
+
+	if rec.Code != http.StatusGatewayTimeout {
+		t.Fatalf("status = %d, want 504; a wrapped error must not collapse to 500", rec.Code)
+	}
+	if body["code"] != "UPSTREAM_TIMEOUT" {
+		t.Errorf("code = %v", body["code"])
+	}
+	if !errors.Is(wrapped, sentinel) {
+		t.Error("the classification must survive alongside the response mapping")
 	}
 }

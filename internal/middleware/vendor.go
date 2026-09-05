@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"strconv"
 	"time"
 
 	"github.com/aurc/commission-quote-app/internal/platform/httpx"
@@ -26,6 +27,42 @@ const apiKeyHeader = "api-key"
 // maxVendorBody bounds what we will read from the vendor. An upstream that
 // streams without end should not be able to exhaust our memory.
 const maxVendorBody = 1 << 20
+
+// QuoteSource asks the vendor for a quote. The handler depends on this rather
+// than on the client, so resilience can be layered over it: the running service
+// composes breaker(retrier(client)).
+type QuoteSource interface {
+	Quote(ctx context.Context, req QuoteRequest) (Quote, error)
+}
+
+// Classification markers. They travel alongside the translated *httpx.Error, so
+// the response mapping stays in one place and the policy questions are answered
+// where the vendor's behaviour is already being interpreted.
+var (
+	// ErrTransient marks a failure that provably produced no quote, or one the
+	// design has accepted regenerating. Only these may be retried, and anything
+	// unmarked is not, so the safe default is the default. See contract.md
+	// section 6.
+	ErrTransient = errors.New("vendor failure produced no quote")
+
+	// ErrRequestFault marks a failure caused by the request we sent rather than
+	// by the vendor's health. The circuit breaker ignores these: one badly
+	// shaped request must not stop valid traffic.
+	ErrRequestFault = errors.New("vendor rejected this request")
+)
+
+func transient(e *httpx.Error) error {
+	return fmt.Errorf("%w: %w", ErrTransient, e)
+}
+
+// circuitOpen is the response when we decline to call the vendor at all.
+func circuitOpen(retryAfter time.Duration) error {
+	return httpx.CircuitOpen(retryAfter)
+}
+
+func requestFault(e *httpx.Error) error {
+	return fmt.Errorf("%w: %w", ErrRequestFault, e)
+}
 
 // Quote is what we return to our caller.
 type Quote struct {
@@ -113,13 +150,20 @@ func (c *VendorClient) Quote(ctx context.Context, req QuoteRequest) (Quote, erro
 func (c *VendorClient) transportError(ctx context.Context, err error) error {
 	if errors.Is(err, context.DeadlineExceeded) || errors.Is(ctx.Err(), context.DeadlineExceeded) {
 		c.log.ErrorContext(ctx, "vendor call timed out", slog.String("cause", err.Error()))
-		return httpx.UpstreamTimeout(err)
+		// Strictly a timeout is ambiguous: the vendor may have created a quote
+		// we never saw. It is retried anyway because assumptions.md 1.5 says
+		// exactly that case is regenerated, quotes being advisory. See the
+		// reasoning in contract.md section 6.
+		return transient(httpx.UpstreamTimeout(err))
 	}
 	if errors.Is(err, context.Canceled) {
+		// The caller gave up. Retrying would spend a budget nobody is waiting on.
 		return httpx.UpstreamTimeout(err)
 	}
+	// Connection refused, DNS failure, reset before headers: the request never
+	// reached their handler, so no quote exists.
 	c.log.ErrorContext(ctx, "vendor call failed", slog.String("cause", err.Error()))
-	return httpx.UpstreamUnavailable(err)
+	return transient(httpx.UpstreamUnavailable(err))
 }
 
 // translate maps the vendor's response onto ours, per contract.md section 5.
@@ -127,6 +171,21 @@ func (c *VendorClient) translate(ctx context.Context, resp *http.Response) (Quot
 	switch resp.StatusCode {
 	case http.StatusCreated:
 		return c.decode(ctx, resp)
+
+	case http.StatusTooManyRequests:
+		// Rate limited before doing any work. Their Retry-After wins over our
+		// backoff when they bothered to send one.
+		e := httpx.UpstreamUnavailable(errors.New("vendor rate limited us"))
+		e.RetryAfter = retryAfter(resp)
+		c.log.WarnContext(ctx, "vendor rate limited us",
+			slog.Int64("retryAfterSeconds", int64(e.RetryAfter.Seconds())))
+		return Quote{}, transient(e)
+
+	case http.StatusBadGateway, http.StatusServiceUnavailable, http.StatusGatewayTimeout:
+		// Rejected at their edge, so their handler never ran. The safest class
+		// to retry, and the reason the mock injects 503 rather than 500.
+		c.log.WarnContext(ctx, "vendor unavailable", slog.Int("vendorStatus", resp.StatusCode))
+		return Quote{}, transient(httpx.UpstreamUnavailable(fmt.Errorf("vendor returned %d", resp.StatusCode)))
 
 	case http.StatusUnauthorized, http.StatusForbidden:
 		// Our credential is wrong, not the caller's. Reporting 401 here would
@@ -146,9 +205,16 @@ func (c *VendorClient) translate(ctx context.Context, resp *http.Response) (Quot
 		c.log.ErrorContext(ctx, "vendor rejected a request we accepted, validation has drifted",
 			slog.String("vendorBody", c.peek(resp)),
 		)
-		return Quote{}, httpx.UpstreamContract(errors.New("vendor rejected a request we validated"))
+		// Not transient, and not the vendor's health either: retrying repeats the
+		// same rejection, and tripping the breaker would block valid requests
+		// because of one bad shape.
+		return Quote{}, requestFault(httpx.UpstreamContract(errors.New("vendor rejected a request we validated")))
 
 	default:
+		// Everything else, 500 included. A 500 is deliberately not retried: it
+		// is ambiguous, since the vendor may have created a quote before
+		// failing, and a retry is as likely to hit the same fault. See
+		// contract.md section 6.
 		c.log.ErrorContext(ctx, "vendor returned an unexpected status",
 			slog.Int("vendorStatus", resp.StatusCode),
 		)
@@ -195,6 +261,20 @@ func (c *VendorClient) decode(ctx context.Context, resp *http.Response) (Quote, 
 	}
 
 	return Quote{QuoteID: vq.QuoteID, CommissionRate: rate, TotalCommission: total}, nil
+}
+
+// retryAfter reads the vendor's Retry-After header, in seconds. Zero when
+// absent or unusable, in which case our own backoff applies.
+func retryAfter(resp *http.Response) time.Duration {
+	v := resp.Header.Get("Retry-After")
+	if v == "" {
+		return 0
+	}
+	secs, err := strconv.Atoi(v)
+	if err != nil || secs < 0 {
+		return 0
+	}
+	return time.Duration(secs) * time.Second
 }
 
 // peek returns a bounded snippet of an error body for the log. Bounded because

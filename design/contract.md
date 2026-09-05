@@ -253,6 +253,26 @@ is less than the next delay.
 Circuit breaker (Middleware to CQAPI): rolling window 20 requests, minimum 10 samples, trips at 50%
 failures, open 10s, half open allows 3 probes.
 
+The breaker sits **outside** the retrier. Inside, it would see each retry as a separate outcome and
+could trip on a single unlucky request; outside, it sees one outcome per request the user made, and
+an open circuit skips the retries entirely rather than paying for them.
+
+What counts toward it is not obvious:
+
+| Outcome | Counts | Why |
+|---|---|---|
+| Transport failure, timeout, `5xx` | yes | The vendor is unhealthy |
+| `401`, `403` | yes | Our credential is not working, so every request will fail. Stop asking |
+| `400` | no | Request specific. Tripping would block valid traffic because of one bad shape |
+
+Opening discards the window. Keeping it would let failures recorded before the outage trip the
+circuit again immediately after recovery.
+
+Tunable through `MIDDLEWARE_RETRY_ATTEMPTS`, `MIDDLEWARE_RETRY_BASE`, `MIDDLEWARE_RETRY_CAP`,
+`MIDDLEWARE_BREAKER_WINDOW`, `MIDDLEWARE_BREAKER_MIN_SAMPLES`, `MIDDLEWARE_BREAKER_THRESHOLD`,
+`MIDDLEWARE_BREAKER_OPEN_FOR` and `MIDDLEWARE_BREAKER_PROBES`. Startup refuses a minimum sample count
+larger than the window, which would mean a breaker that can never trip.
+
 ### Retry rule
 
 `assumptions.md` assumes quote generation is not idempotent at the vendor, so a retry may create a
@@ -261,7 +281,7 @@ second quote. Retries are therefore restricted to failures that provably produce
 | Condition                                    | Retry | Reason                                     |
 |----------------------------------------------|-------|--------------------------------------------|
 | Connection refused, DNS failure, TCP reset   | yes   | Request never reached the application      |
-| Timeout before response headers              | yes   | No response was begun                      |
+| Timeout before any response                  | yes   | Ambiguous, but see below                   |
 | `502`, `503`, `504`                          | yes   | Rejected at the edge, handler did not run  |
 | `429`                                        | yes   | Honour `Retry-After` if present            |
 | `500`                                        | no    | Ambiguous, the vendor may have created it  |
@@ -270,6 +290,25 @@ second quote. Retries are therefore restricted to failures that provably produce
 
 `500` not being retryable is the direct consequence of non idempotency. This is why the CQAPI mock
 injects `503` rather than `500`; `503` is the honest signal for a request that was never processed.
+
+### Why a timeout is retried and a 500 is not
+
+Strictly, both are ambiguous: in either case the vendor may have created a quote we never saw. The
+split is a judgement about cost and benefit, not a purity rule, and is worth stating plainly because
+the two look alike.
+
+A timeout is retried because `assumptions.md` 1.5 already decides this case: a quote generated but
+not received is abandoned and a new one requested, quotes being advisory and not binding. Never
+retrying a timeout would also mean the vendor's slow path always reaches the user, which is most of
+what this layer exists to prevent.
+
+A `500` is not retried because it carries extra information a timeout does not: the vendor is telling
+us it broke while processing. A second identical request is likely to hit the same fault, so the
+expected benefit is low while the duplicate risk is the same. Low benefit and non zero cost is a
+straightforward no.
+
+Connection failures, `502`, `503`, `504` and `429` are in a different category entirely: the request
+never reached their handler, so there is no duplicate risk at all.
 
 Per `assumptions.md` 1.5, a quote generated at the vendor but not received is abandoned, not
 reconciled. Quotes are advisory and not binding.
@@ -378,6 +417,18 @@ is. An `oauth2` scheme would carry scopes natively, but it would also have to na
 and there is no such endpoint in the MVP: the BFF mints the token itself. Inventing a `tokenUrl` to
 satisfy the schema would put a fiction in a published contract. When the IdP arrives the scheme
 becomes `openIdConnect` against real discovery, and the declared scopes carry over unchanged.
+
+### Transport
+
+No Go service terminates TLS, deliberately. Public traffic is terminated at the Edge; service to
+service encryption is the mesh sidecar's mTLS. An application that also terminated TLS would be
+holding certificates it has no way to rotate and duplicating what the platform already provides.
+
+The exception is the outbound call to the vendor, which is external and carries the `api-key`. That
+one is ours, and the Middleware refuses to start when `CQAPI_BASE_URL` is plain HTTP to anything but
+loopback or the local compose service name. Over plain HTTP to a remote host the credential is
+readable by anything on the path, and nothing else in the system would notice, so a misconfigured
+scheme is a quiet and total compromise. Startup is the only place to catch it.
 
 ### Stated limitations
 
