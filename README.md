@@ -89,46 +89,15 @@ Go package names cannot, so `cmd/cqapp-bff` pairs with `internal/cqappbff`.
 [assumptions.md](design/assumptions.md) holds the assumptions and design decisions applied to this
 project, and [contract.md](design/contract.md) holds the detail the code is tested against.
 
-This work follows an AI first approach. For transparency I broke it into separate tasks, each with a
-dedicated commit for the planned work and one for the finished task. The task register is at
+This work follows an AI first approach, using Anthropic Claude Code, which I use both personally and
+professionally. For transparency I broke the work into separate tasks, each with a dedicated commit
+for the AI planned work and one for the finished task. The task register is at
 [tasks/register.md](tasks/register.md); each task has a `code`, and the PR addressing it quotes that
 `code` at the start of its title.
 
-## AI usage
-
-Required by the brief, and worth being specific about rather than general.
-
-**The tool.** Anthropic Claude Code, which I use personally and professionally. It wrote most of the
-code in this repository. I directed it, reviewed every change, and made the decisions it raised.
-
-**How the work ran.** One task at a time from the register. For each: a plan committed first, a pause
-while I read it, then the implementation. Every design decision that could reasonably have gone
-another way was argued in the PR body rather than asserted, so the reasoning is reviewable rather
-than buried. The commit history is the evidence, and it is worth more than any claim I make here.
-
-**What I changed.** The honest part. Review is where most of the value was, and the record shows it:
-
-| I raised | It changed |
-|---|---|
-| The scope check was circular: the BFF minted the token and wrote its own scope into it | Entitlement moved behind a port the Middleware owns, so a compromised BFF cannot grant itself access |
-| Staff were hard coded, and the BFF would need the same list | A `config/staff.csv` fixture both read, then credentials split into their own file the Middleware never loads |
-| The Middleware's error messages read like UI copy | Messages state the condition; the BFF owns user wording |
-| Names were inconsistent across `cmd/`, `internal/` and the Makefile | One rule, applied everywhere, and written down so the next name follows it |
-| No TLS support | The gap that mattered was outbound: the vendor `api-key` could have crossed the network in clear, and startup now refuses it |
-| On a phone the result sat below the fold | The form collapses in place |
-| Moving the result above the form made the panel jump | Order fixed, only height changes |
-| Service unavailable had two buttons doing the same thing | One primary action per screen |
-| Only four states had phone artboards | Every state has one |
-
-**What it caught that I did not.** Tests found a whitespace-only subject authenticating, a service
-logging "listening" before it had bound a port, `.env` leaking into `make test`, and a decoder
-accepting a quoted `"1000"` into a numeric field. Each is recorded in the commit that fixed it.
-
-**What I would tell you in the room.** The design canvas was wrong four times before it was right,
-and every one of those was caught by looking at it rather than by reasoning about it. The parts I
-would most want to walk through are the retry rule, where a `500` is deliberately not retried because
-the vendor is not idempotent, and the entitlement seam, because it is the one place the first design
-was wrong in a way that would have passed review.
+The register, the commit history and the PR bodies are the account of how it was used. Every design
+decision that could reasonably have gone another way was argued in the PR that made it, so the
+reasoning is reviewable rather than asserted here.
 
 ## Getting started
 

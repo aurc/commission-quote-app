@@ -75,16 +75,12 @@ The canvas shares only within the organisation because it declares export, so a 
 cannot open the link. `pdf.sh` renders every artboard into one PDF committed to the repository, so
 the design travels with the code and needs no link at all.
 
-## The AI usage section
+## AI usage
 
-Required by the brief and currently missing. It states plainly: the tool, what it did, what I
-directed, and how to check. The commit history is the evidence, so it points at the shape rather than
-claiming a level of oversight nobody can verify: a task register, a plan commit before each
-implementation commit, one PR per task, and design decisions argued in the PR bodies rather than
-asserted.
-
-It should be specific about what review changed, because that is the honest part: the canvas was
-wrong four times before it was right.
+The brief asks for a brief section on how AI was used. It belongs in the existing approach section
+rather than a separate one: that section already names the tool and describes the workflow, and the
+register, the commit history and the PR bodies are the actual account. A longer write up would be a
+claim about the work sitting next to the evidence for it.
 
 ## Tests
 
@@ -106,16 +102,31 @@ The reviewer path, exactly as written in the README, from a clean checkout in a 
 
 ## Verification status
 
-`make check` is green and the health flag was verified against a running service: exit 1 with nothing
-listening, 0 while it answers, 1 after it stops.
+Run end to end against the built stack, on Docker 29.7.2.
 
-**The compose stack is written but not verified on this machine.** The Docker daemon here is
-20.10.16, four years old, and answers `docker info` while image pulls make no progress at all: a
-`golang:1.26` pull produced no output in over thirty minutes and no layers on disk. That is a
-connectivity or daemon problem on this machine, not something in the compose file, but it means the
-one command path has not been run end to end and should not be claimed as tested. Updating Docker
-Desktop is the first thing to try.
+| Check | Result |
+|---|---|
+| `docker compose up --build` from a clean state | All four containers healthy, in dependency order |
+| The SPA on the single origin | `200` |
+| A deep link | `200`, and the app rather than a 404 |
+| Sign in and a quote through the Edge | A quote with a real vendor id |
+| Invalid input | `400`, every failed field at once |
+| 8081, 8082, 8083 from the host | Connection refused; only the Edge publishes |
+| Security headers | CSP, nosniff, no-referrer, DENY, `server_tokens off` |
+| A fixture edit, backends restarted only | The new staff member signs in and gets a quote |
+| Image sizes | 17 MB per Go service, 50 MB for the Edge |
 
-Everything the compose file relies on has been verified separately: the services run and talk to each
-other natively, the front end works through a proxy in front of the BFF, and the health flag returns
-the exit codes compose depends on.
+### One defect this found
+
+The first run returned `502` from the Edge after restarting the BFF. The BFF was healthy and
+reachable on the network; nginx was still dialling its old address.
+
+nginx resolves an upstream name once at startup and caches it forever, so any backend that restarts
+comes back on a new address and every request fails until nginx restarts too. In a deployed
+environment that turns a routine rolling restart into an outage.
+
+Fixed by naming the upstream in a variable with Docker's embedded resolver, which forces a lookup per
+request. Re-tested: restarting both backends no longer disturbs the Edge.
+
+This is the reason the task is verified by running it rather than by reading it. Nothing in the
+compose file or the nginx config looked wrong.
