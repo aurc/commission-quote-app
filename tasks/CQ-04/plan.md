@@ -20,10 +20,12 @@ internal/middleware/
   auth.go        bearer verification, scope check
   validate.go    authoritative validation
   vendor.go      CQAPI client, api-key injection, error translation
-  handler.go     POST /api/v1/quotes
+  handler.go     POST /v1/quotes
   config.go
-internal/platform/money/      extracted from internal/cqapi
 ```
+
+`internal/platform/money` and the design realignment landed first, in their own commit on this
+branch.
 
 ## Design
 
@@ -36,12 +38,11 @@ MAC with `==`, or skip the `aud` check, and the result still passes every happy 
 trivially forgeable. A well known library is the responsible choice, and the distinction between the
 two cases is worth being explicit about.
 
-**Money parsing moves to `internal/platform/money`.**
-`Cents`, `Rate` and `ParseCents` currently live in `internal/cqapi`. The Middleware needs identical
-parsing to enforce the two decimal place rule, and importing the vendor mock into our own service
-would couple us to a component that is meant to be deleted when the real vendor arrives. The types
-are general money handling, not vendor behaviour, so they move to the platform and `internal/cqapi`
-imports them from there.
+**Money moved to `internal/platform/money`, on `math/big.Rat`.**
+Done ahead of the handler work. Amounts and rates are exact rationals, nothing rounds until a value
+reaches a boundary, and boundaries are `int64` cents or ten thousandths. The Middleware needs the
+same parsing the vendor uses, and importing the vendor mock into our own service would couple us to
+a component meant to be deleted when the real vendor arrives.
 
 ### Claim verification
 
@@ -84,7 +85,7 @@ unchanged.
 
 | Vendor result | Ours | Why |
 |---|---|---|
-| `201`, parseable | `201` | |
+| `201`, parseable | `200` | We create nothing, so we do not claim `201` |
 | `201`, unparseable | `502 UPSTREAM_CONTRACT` | They broke the contract |
 | `401` | `502 UPSTREAM_UNAVAILABLE` | Our credential problem, never the user's `401` |
 | `400` | `502 UPSTREAM_CONTRACT` | Our validation and theirs have diverged. Log loudly |

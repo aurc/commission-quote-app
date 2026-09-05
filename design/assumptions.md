@@ -33,8 +33,11 @@ banking system (internal or external).
 
 1. System resilience:
     1. UI should survive backend crashes, API unavailability, degraded performance.
-    2. Requests to the backend will implement exponential backoff, bounded as per the budgets in *Resilience Budgets*
-       below.
+    2. Retries with bounded exponential backoff are applied at exactly one layer, the Middleware to
+       CQAPI hop, per the budgets in *Resilience Budgets* below. The browser and the BFF do not
+       retry. Retrying at several layers multiplies the attempts the vendor sees, and with a non
+       idempotent operation it multiplies the risk of duplicate quotes. Every other hop gets a hard
+       timeout instead.
     3. Requests that hang for an arbitrary amount of time will be terminated to preserve system resources.
     4. [Assumption] Quote generation is not idempotent at the vendor. Retries restricted to failures where
        no quote has been returned.
@@ -53,7 +56,9 @@ banking system (internal or external).
 3. Security:
     1. [Assumption] Zero trust environment: Backed by the bare bones of this simple app, is access verification at every
        step.
-    2. [Assumption] Connections are encrypted.
+    2. [Assumption] Connections are encrypted in a deployed environment, terminated at the Edge. The
+       local compose stack runs plain HTTP: shipping a self signed certificate would add a browser
+       warning and a trust step for a reviewer without demonstrating anything.
     3. [Assumption] System accessed from within Bendigo's perimeter. No public access.
     4. The vendor `api-key` is a server side secret. It is held by the Middleware only. It is never present in FE
        bundles, never in a BFF response, and never crosses the browser boundary. See *API Key Handling*.
@@ -91,7 +96,7 @@ The table below splits what is built from what is documented as the production s
 | Middleware    | Go service, session check, validation, commission orchestration, api-key, resilience, OpenAPI  | Claim verification against the real IdP or mesh identity, rate limiting   |
 | BFF           | Tiny Go binary, session cookie, proxy to Middleware                                            | OIDC authorisation code flow, distributed session store                   |
 | Mocked CQAPI  | Standalone Go binary, api-key enforcement, random failures, latency injection                  | Deleted, replaced by the vendor plus contract tests against their sandbox |
-| Edge          | nginx, single origin, TLS termination point, serves FE assets with SPA fallback, routes `/api` | Managed certificates, WAF, CDN for static assets                          |
+| Edge          | nginx, single origin, serves FE assets with SPA fallback, routes `/api`, HTTP locally          | TLS termination with managed certificates, WAF, CDN for static assets     |
 | Staff auth    | `AuthProvider` interface with a fake in-memory Staff session                                   | OIDC against the bank IdP behind the same interface                       |
 | Secrets       | `SecretProvider` interface reading env vars                                                    | Bank secret manager behind the same interface, rotation                   |
 | Observability | Structured JSON logs, correlation id propagation, open telemetry traces                        | OTLP collector, dashboards, alerting, SLOs                                |

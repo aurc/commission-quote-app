@@ -24,8 +24,26 @@ matrix small. Adding bands is a data change, not a code change.
 
 ### Money
 
-AUD only. Amounts are JSON numbers with at most 2 decimal places. Rounding is half up.
-Rates are JSON numbers with 4 decimal places (`0.0125` is 1.25%).
+AUD only. On the wire, amounts are JSON numbers with exactly 2 decimal places and rates JSON numbers
+with exactly 4 (`0.0125` is 1.25%). Input amounts are accepted with at most 2 decimal places.
+
+**Arithmetic is exact, never floating point.** `internal/platform/money` holds amounts and rates as
+`math/big.Rat`. A decimal is a ratio of integers, so a `Rat` represents `0.01` and `250000.00 *
+0.0180` exactly, where `float64` cannot: it gives `4500.000000000001`, and errors of that shape
+accumulate into a number somebody is eventually paid.
+
+Nothing rounds mid calculation. A value is held at full precision until it reaches a boundary, and
+rounding is then one named operation, `RoundHalfUp`, applied once. Half up means a tie goes up, so
+`10.005` renders as `10.01`. Amounts are validated positive before any rounding, so the behaviour of
+a negative tie never arises.
+
+**Boundaries are integers.** Where a value leaves the exact world for JSON, a log line or a store, it
+crosses as whole cents (`int64`) or whole ten thousandths (`int64`), never as a float. `Cents` and
+`TenThousandths` report whether the value fits, because an amount arrives from the network before it
+has been range checked and could be arbitrarily large. Overflow is reported, never wrapped.
+
+Rate cards are integers by nature. `0.0150` is 150 ten thousandths, a whole number of basis points,
+not a measured quantity, so pricing tables are written as integers and converted.
 
 ## 2. Vendor contract (CQAPI)
 
@@ -43,7 +61,12 @@ Response `201`:
 { "quoteId": "b3f1c9e2-...", "commissionRate": 0.0165, "totalCommission": 4125.00 }
 ```
 
-`quoteId` is a UUIDv4 generated per request. Quotes are not stored.
+`quoteId` is a UUIDv4 generated per request.
+
+`201` rather than `200` is deliberate, and is the one place the two contracts differ. The vendor is
+modelled as a system that records the quote it issues: that is exactly why `assumptions.md` 1.4
+assumes generation is not idempotent there, and why a retry risks a duplicate. A system that creates
+something returns `201`. Our own Middleware creates nothing and returns `200`; see section 3.
 
 ### Commission formula
 
@@ -83,12 +106,26 @@ which failed. Comparison is constant time.
 
 ## 3. Middleware contract
 
-`POST /api/v1/quotes`. Published in `api/middleware.openapi.yaml`.
+`POST /v1/quotes`, returning `200`. Published in `api/middleware.openapi.yaml`.
 
 Same request and response bodies as the vendor. The MVP contract deliberately mirrors the vendor;
 divergence is expected later and is the reason the layer exists.
 
 Headers: `Authorization: Bearer <jwt>` (required), `X-Correlation-Id`, `traceparent`.
+
+Two deliberate differences from the vendor contract:
+
+**The path carries no `/api` prefix.** `/api` is the Edge's routing concern, the segment it uses to
+decide browser traffic goes to the BFF rather than to static assets. An internal service that is
+never browser facing should not carry a routing prefix that belongs to a layer two hops away. The
+browser calls `/api/v1/quotes`, the Edge forwards to the BFF, and the BFF calls the Middleware at
+`/v1/quotes`.
+
+**The status is `200`, not `201`.** We create nothing. `assumptions.md` 1.5 and 1.7 state the app is
+stateless with no quote lifecycle, so there is no resource to have created, nothing to put in a
+`Location` header, and nothing to retrieve afterwards. Returning `201` would claim otherwise. The
+Middleware translating the vendor's `201` into our `200` is a small, concrete example of the layer
+doing its job rather than forwarding bytes.
 
 ## 4. Validation
 
@@ -134,6 +171,7 @@ Single response shape at every layer:
 | Vendor rejected our `api-key`     | `502`             | `UPSTREAM_UNAVAILABLE`    | Quotes are unavailable right now. Try again shortly.   |
 | Vendor 5xx, retries exhausted     | `502`             | `UPSTREAM_UNAVAILABLE`    | Quotes are unavailable right now. Try again shortly.   |
 | Vendor response unparseable       | `502`             | `UPSTREAM_CONTRACT`       | Quotes are unavailable right now. Try again shortly.   |
+| Vendor rejected our request `400` | `502`             | `UPSTREAM_CONTRACT`       | Quotes are unavailable right now. Try again shortly.   |
 | Timeout or total budget exceeded  | `504`             | `UPSTREAM_TIMEOUT`        | The quote service took too long. Try again.            |
 | Circuit breaker open              | `503` + `Retry-After` | `UPSTREAM_CIRCUIT_OPEN` | Quotes are paused briefly. Try again in a moment.      |
 | Panic or unexpected failure       | `500`             | `INTERNAL`                | Something went wrong. Try again.                       |
@@ -142,6 +180,11 @@ The vendor `api-key` failure maps to `502`, never `401`. A vendor credential pro
 operational fault, not the staff user's authentication problem, and conflating them would both
 mislead the user and leak that a credential exists. The real cause is logged at `error` with the key
 masked. This implements `assumptions.md` API Key Handling item 4.
+
+A vendor `400` is not passed through as a `400`. We validated the request and accepted it, and they
+rejected it, which means our validation and theirs have drifted apart. That is our bug, not the
+user's mistake, so it must not be reported to the caller as though they got something wrong. It is
+logged at error level because it means the contract needs attention.
 
 `INTERNAL` was added during CQ-02. Panic recovery has to render something, and without a named class
 it would have invented an envelope outside this table. Any error that is not one of the classes above
@@ -268,7 +311,27 @@ Startup fails fast and loudly if a required secret is absent.
 | middleware | `8082` | no                         |
 | cqapi      | `8083` | no                         |
 
-## 10. Testing strategy
+## 10. Front end contract
+
+The brief specifies parts of the UI literally, so they are pinned here rather than left to CQ-07.
+
+| Element | Requirement |
+|---|---|
+| Form fields | `loanAmount`, `loanTermInMonths`, `riskBand` |
+| Submit control | A button labelled **Generate Quote** |
+| Success | A display area showing `quoteId`, `commissionRate` and `totalCommission` |
+| In flight | A visible loading state; the submit control is disabled while a request is open |
+| Failure | The `message` from the error envelope, shown as an error, with `correlationId` available |
+| Field errors | `details` mapped back to the field that failed, shown inline |
+
+Presentation: `commissionRate` is shown as a percentage to two decimal places (`0.0180` renders as
+`1.80%`), `totalCommission` as AUD currency. The FE formats for display only; it never recomputes a
+figure the vendor produced.
+
+Validation in the FE mirrors section 4 for immediate feedback and is never trusted. The Middleware
+rejects independently, and the FE renders whatever it sends back.
+
+## 11. Testing strategy
 
 `assumptions.md` does not mention testing; the challenge grades it. Filling that gap here.
 

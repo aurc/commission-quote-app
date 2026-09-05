@@ -1,10 +1,10 @@
 package cqapi_test
 
 import (
-	"encoding/json"
 	"testing"
 
 	"github.com/aurc/commission-quote-app/internal/cqapi"
+	"github.com/aurc/commission-quote-app/internal/platform/money"
 )
 
 func TestCommissionRate(t *testing.T) {
@@ -12,19 +12,19 @@ func TestCommissionRate(t *testing.T) {
 		name   string
 		band   cqapi.RiskBand
 		months int64
-		want   cqapi.Rate
+		want   string
 	}{
-		{"band A, minimum term, no adjustment", cqapi.BandA, 6, 100},
-		{"band B, minimum term", cqapi.BandB, 6, 150},
-		{"band C, minimum term", cqapi.BandC, 6, 225},
-		{"one full year earns one step", cqapi.BandA, 12, 105},
-		{"partial years do not count", cqapi.BandA, 23, 105},
-		{"two years", cqapi.BandA, 24, 110},
-		{"the worked example from contract.md", cqapi.BandB, 240, 180},
-		{"cap binds at 72 months", cqapi.BandA, 72, 130},
-		{"cap holds beyond 72 months", cqapi.BandA, 84, 130},
-		{"cap holds at the maximum term", cqapi.BandA, 360, 130},
-		{"cap applies to every band", cqapi.BandC, 360, 255},
+		{"band A, minimum term, no adjustment", cqapi.BandA, 6, "0.0100"},
+		{"band B, minimum term", cqapi.BandB, 6, "0.0150"},
+		{"band C, minimum term", cqapi.BandC, 6, "0.0225"},
+		{"one full year earns one step", cqapi.BandA, 12, "0.0105"},
+		{"partial years do not count", cqapi.BandA, 23, "0.0105"},
+		{"two years", cqapi.BandA, 24, "0.0110"},
+		{"the worked example from contract.md", cqapi.BandB, 240, "0.0180"},
+		{"cap binds at 72 months", cqapi.BandA, 72, "0.0130"},
+		{"cap holds beyond 72 months", cqapi.BandA, 84, "0.0130"},
+		{"cap holds at the maximum term", cqapi.BandA, 360, "0.0130"},
+		{"cap applies to every band", cqapi.BandC, 360, "0.0255"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -32,8 +32,8 @@ func TestCommissionRate(t *testing.T) {
 			if !ok {
 				t.Fatalf("band %q should be known", tt.band)
 			}
-			if got != tt.want {
-				t.Errorf("CommissionRate(%q, %d) = %v (%.4f), want %v", tt.band, tt.months, got, got.Float(), tt.want)
+			if got.String() != tt.want {
+				t.Errorf("CommissionRate(%q, %d) = %s, want %s", tt.band, tt.months, got, tt.want)
 			}
 		})
 	}
@@ -49,118 +49,58 @@ func TestUnknownBandIsRejected(t *testing.T) {
 
 // The worked example in contract.md section 2, end to end.
 func TestWorkedExample(t *testing.T) {
-	amount, err := cqapi.ParseCents("250000.00")
+	amount, err := money.ParseAmount("250000.00")
 	if err != nil {
 		t.Fatal(err)
 	}
-	rate, _ := cqapi.CommissionRate(cqapi.BandB, 240)
-	total := cqapi.TotalCommission(amount, rate)
 
-	if rate != 180 {
-		t.Errorf("rate = %v, want 0.0180", rate)
+	rate, ok := cqapi.CommissionRate(cqapi.BandB, 240)
+	if !ok {
+		t.Fatal("band B must be priced")
 	}
-	if total != 450000 {
-		t.Errorf("total = %v, want 4500.00", total)
+	total := amount.Mul(rate)
+
+	if got := rate.String(); got != "0.0180" {
+		t.Errorf("rate = %s, want 0.0180", got)
+	}
+	if got := total.String(); got != "4500.00" {
+		t.Errorf("total = %s, want 4500.00", got)
+	}
+	// Exact, not merely correct to two places.
+	if got := total.Rat().RatString(); got != "4500" {
+		t.Errorf("exact total = %s, want 4500", got)
 	}
 }
 
-// The reason money is not float64: this product is 4500.000000000001 in binary
-// floating point, and errors of that shape accumulate into real money.
-func TestTotalCommissionIsExactWhereFloatWouldDrift(t *testing.T) {
-	amount, _ := cqapi.ParseCents("250000.00")
-	got := cqapi.TotalCommission(amount, 180)
-
-	if got != 450000 {
-		t.Fatalf("total = %d cents, want 450000", got)
-	}
-	if drifted := 250000.00 * 0.0180; drifted == 4500.00 {
-		t.Skip("this platform's float64 does not drift here, the integer path is still the safe one")
-	}
-}
-
-func TestTotalCommissionRounding(t *testing.T) {
-	tests := []struct {
-		name   string
-		amount cqapi.Cents
-		rate   cqapi.Rate
-		want   cqapi.Cents
-	}{
-		{"exact", 100000, 100, 1000},          // 1000.00 at 0.0100 = 10.00
-		{"rounds half up", 100050, 100, 1001}, // 10.005 -> 10.01
-		{"rounds down below half", 100040, 100, 1000},
-		{"smallest amount", 1, 100, 0}, // 0.01 at 0.0100 = 0.0001 -> 0.00
-		{"maximum amount at maximum rate", 500000000, 255, 12750000},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := cqapi.TotalCommission(tt.amount, tt.rate); got != tt.want {
-				t.Errorf("TotalCommission(%d, %d) = %d, want %d", tt.amount, tt.rate, got, tt.want)
-			}
-		})
-	}
-}
-
-func TestParseCents(t *testing.T) {
-	valid := map[string]cqapi.Cents{
-		"1000":       100000,
-		"1000.00":    100000,
-		"1000.5":     100050,
-		"1000.50":    100050,
-		"0.01":       1,
-		"5000000.00": 500000000,
-		"+1000.00":   100000,
-		"-1000.00":   -100000,
-	}
-	for in, want := range valid {
-		t.Run("valid "+in, func(t *testing.T) {
-			got, err := cqapi.ParseCents(in)
-			if err != nil {
-				t.Fatalf("ParseCents(%q) errored: %v", in, err)
-			}
-			if got != want {
-				t.Errorf("ParseCents(%q) = %d, want %d", in, got, want)
-			}
-		})
-	}
-
-	invalid := []string{
-		"999.999", // three decimals, the case a float64 would silently swallow
-		"1e9",     // exponent notation is not a plain decimal amount
-		"1_000",
-		"abc",
-		"",
-		"1000.",
-		".50",
-		"1000.00.00",
-		"1 000",
-	}
-	for _, in := range invalid {
-		t.Run("invalid "+in, func(t *testing.T) {
-			if _, err := cqapi.ParseCents(in); err == nil {
-				t.Errorf("ParseCents(%q) should have failed", in)
-			}
-		})
-	}
-}
-
-// The wire format has to look like money, not like a float.
-func TestJSONRendering(t *testing.T) {
-	q := cqapi.Quote{QuoteID: "id", CommissionRate: 180, TotalCommission: 450000}
-
-	b, err := json.Marshal(q)
+func TestGenerateProducesAConsistentQuote(t *testing.T) {
+	amount, err := money.ParseAmount("100000.00")
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := `{"quoteId":"id","commissionRate":0.0180,"totalCommission":4500.00}`
-	if string(b) != want {
-		t.Errorf("got  %s\nwant %s", b, want)
+
+	q, err := cqapi.Generate(amount, 24, cqapi.BandC)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if got := q.CommissionRate.String(); got != "0.0235" {
+		t.Errorf("rate = %s, want 0.0235", got)
+	}
+	if got := q.TotalCommission.String(); got != "2350.00" {
+		t.Errorf("total = %s, want 2350.00", got)
+	}
+}
+
+func TestGenerateRejectsAnUnknownBand(t *testing.T) {
+	if _, err := cqapi.Generate(money.FromCents(100000), 12, "Z"); err == nil {
+		t.Error("an unknown band must not be priced")
 	}
 }
 
 func TestQuoteIDIsAUUIDv4(t *testing.T) {
 	seen := map[string]bool{}
 	for range 100 {
-		q, err := cqapi.Generate(100000, 12, cqapi.BandA)
+		q, err := cqapi.Generate(money.FromCents(100000), 12, cqapi.BandA)
 		if err != nil {
 			t.Fatal(err)
 		}
