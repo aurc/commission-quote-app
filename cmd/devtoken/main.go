@@ -1,10 +1,13 @@
 // Command devtoken prints a bearer token for calling the Middleware directly
 // during development.
 //
-// Development only. It exists because the BFF, which mints these tokens for
-// real, arrives in CQ-06, and until then the Middleware cannot be exercised by
-// hand. It is not in the SERVICES list, is never built into an image, and should
-// be deleted once the BFF can issue a session.
+// Development only. It is not in the SERVICES list and is never built into an
+// image.
+//
+// CQ-06 said this should be deleted once the BFF could issue a session. It
+// survives on a change of mind: the Middleware is independently deployable and
+// worth being able to exercise on its own, without standing up a BFF and a
+// browser session to make one call to it.
 //
 // It mints nothing it is not already entitled to: it signs with the same
 // BFF_MIDDLEWARE_SIGNING_KEY the Middleware verifies with, so anyone who can run
@@ -23,9 +26,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
-
 	"github.com/aurc/commission-quote-app/internal/middleware"
+	"github.com/aurc/commission-quote-app/internal/platform/authtoken"
+	"github.com/aurc/commission-quote-app/internal/platform/secrets"
 	"github.com/aurc/commission-quote-app/internal/platform/staffdir"
 )
 
@@ -50,20 +53,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	now := time.Now()
-	claims := middleware.Claims{
-		RegisteredClaims: jwt.RegisteredClaims{
-			Issuer:    middleware.Issuer,
-			Subject:   *subject,
-			Audience:  jwt.ClaimStrings{middleware.Audience},
-			IssuedAt:  jwt.NewNumericDate(now),
-			ExpiresAt: jwt.NewNumericDate(now.Add(*ttl)),
-			ID:        fmt.Sprintf("devtoken-%d", now.UnixNano()),
-		},
-		Scope: strings.Fields(*scope),
-	}
-
-	signed, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte(key))
+	signed, err := authtoken.Mint(secrets.Value(key), *subject, strings.Fields(*scope), *ttl)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "devtoken: %v\n", err)
 		os.Exit(1)

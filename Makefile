@@ -78,6 +78,10 @@ env: ## Create .env from .env.example if it does not exist
 		cp .env.example .env && echo "created .env from .env.example"; \
 	fi
 
+.PHONY: staff
+staff: ## Add a staff member to the fixtures, prompting for a password
+	@$(RUN_ENV) $(GO) run ./cmd/devstaff $(ARGS)
+
 .PHONY: token
 token: ## Print a development bearer token (ARGS='-sub staff-002')
 	@$(RUN_ENV) $(GO) run ./cmd/devtoken $(ARGS)

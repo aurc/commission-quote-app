@@ -23,7 +23,8 @@ Go 1.26, single module. `golangci-lint` is used if installed and skipped if not.
 | `make cover` | Coverage per package |
 | `make env` | Create `.env` from `.env.example`, needed before any `run-` target |
 | `make run-cqapi-mock`, `make run-middleware` | Run one service natively |
-| `make token` | Development bearer token. `ARGS='-sub staff-002'` for an unentitled subject |
+| `make token` | Development bearer token, for calling the Middleware without the BFF |
+| `make staff ARGS='-id staff-004 -name "Jane Doe"'` | Add a staff member, prompting for a password |
 | `make build` | Build into `bin/` |
 
 `.env` loads only into `run-` and `token`, never into `make test`. Tests must not depend on a
@@ -35,7 +36,7 @@ Ports: edge 8080, bff 8081, middleware 8082, cqapi-mock 8083.
 
 | Done | Remaining |
 |---|---|
-| CQ-01 design, CQ-02 platform, CQ-03 vendor mock, CQ-04 middleware | CQ-05 resilience, CQ-06 BFF, CQ-07 web, CQ-08 edge and compose |
+| CQ-01 to CQ-06: design, platform, vendor mock, middleware, resilience, BFF | CQ-07 web, CQ-08 edge and compose |
 
 Authoritative documents, read both before writing code:
 
@@ -65,7 +66,7 @@ calls the Middleware, and the vendor key never reaches the BFF or the browser.
 |---|---|---|---|
 | Edge | nginx | 8080 | Single origin, TLS, FE assets with SPA fallback, `/api` to BFF |
 | FE | React + Vite | via edge | Form, inline validation, loading/error/result states |
-| BFF | Go | 8081 | Session cookie, cookie to bearer exchange, UI friendly errors. No business logic, no vendor credential |
+| BFF | Go | 8081 | Password sign in, session cookie, cookie to bearer exchange, user facing wording. No business logic, no vendor credential |
 | Middleware | Go | 8082 | Claim verification, authoritative validation, retries, breaker, OpenAPI, holds the `api-key` |
 | cqapi-mock | Go | 8083 | Vendor contract, `api-key` enforcement, failure and latency injection |
 
@@ -109,6 +110,9 @@ Reviewer run path is `docker compose up`. Makefile targets exist for native dev.
 - **Money is `math/big.Rat`, never `float64`.** `internal/platform/money`. Nothing rounds until a
   boundary, where `RoundHalfUp` is applied once. Boundaries are `int64` cents or ten thousandths and
   report overflow rather than wrapping.
+- **Credentials live in `config/credentials.csv`, never in `staff.csv`.** The Middleware reads
+  identity and entitlement and must never load password material. bcrypt, never plaintext, in the
+  fixture too. Sign in failures are uniform so timing does not reveal who exists.
 - **Staff live in `config/staff.csv`, never hard coded.** Read through `internal/platform/staffdir`.
   The BFF takes identity from it and the Middleware takes entitlement, so the two cannot disagree
   about who exists. Keep at least one member with no scopes or the `403` path stops being tested.

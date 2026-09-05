@@ -10,11 +10,6 @@ import (
 	"slices"
 )
 
-// ScopeQuoteGenerate is the scope required to generate a quote. It is published
-// in api/middleware.openapi.yaml so a consumer learns the requirement from the
-// contract rather than by being refused.
-const ScopeQuoteGenerate = "quote:generate"
-
 // Entitlements reports what a subject is permitted to do.
 //
 // This is the seam that keeps authorisation out of the caller's hands. The scope

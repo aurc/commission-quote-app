@@ -8,7 +8,7 @@ mocked external vendor API.
 
 | Built | Not yet |
 |---|---|
-| Vendor mock (CQ-03), Middleware (CQ-04) | BFF (CQ-06), Web front end (CQ-07), Edge and compose (CQ-08) |
+| Vendor mock, Middleware, resilience, BFF | Web front end (CQ-07), Edge and compose (CQ-08) |
 
 ## Documents
 
@@ -78,18 +78,19 @@ Two terminals, or background them:
 ```sh
 make run-cqapi-mock    # vendor stand in, port 8083
 make run-middleware    # middleware,      port 8082
+make run-bff           # bff,             port 8081
 ```
 
 ### Making a request
 
-The BFF, which mints tokens for the browser, arrives in CQ-06. Until then `make token` issues one
-directly. It is development only and never ships in an image.
+Sign in, then ask for a quote. The development password for every fixture row is `demo-password`,
+stated in [config/credentials.csv](config/credentials.csv).
 
 ```sh
-TOKEN=$(make token)
+curl -s -c jar localhost:8081/api/session \
+  -d '{"staffId":"staff-001","password":"demo-password"}'
 
-curl -s localhost:8082/v1/quotes \
-  -H "Authorization: Bearer $TOKEN" \
+curl -s -b jar localhost:8081/api/v1/quotes \
   -d '{"loanAmount":250000.00,"loanTermInMonths":240,"riskBand":"B"}'
 ```
 
@@ -97,21 +98,34 @@ curl -s localhost:8082/v1/quotes \
 {"quoteId":"7c4677e6-...","commissionRate":0.0180,"totalCommission":4500.00}
 ```
 
-The vendor mock fails 15% of requests and stalls another 10% past the Middleware's two second
-budget, because the challenge asks it to misbehave. Repeat the call and you will see `502` and `504`
-as well as `200`. Set `CQAPI_FAILURE_RATE=0` and `CQAPI_SLOW_RATE=0` in `.env` to stop it.
+Staff are listed in [config/staff.csv](config/staff.csv), which stands in for the identity provider,
+and their credentials in [config/credentials.csv](config/credentials.csv), which only the BFF reads.
+`make staff ARGS='-id staff-004 -name "Jane Doe"'` adds a member, prompting for a password and
+hashing it.
 
 Things worth trying:
 
-Staff are listed in [config/staff.csv](config/staff.csv), which stands in for the IdP and the
-entitlement source. Add a row and re-run to add a user.
-
 ```sh
-make token ARGS='-sub staff-002'   # a row with no scopes             -> 403
-make token ARGS='-scope ""'        # does not request the scope       -> 403
-curl ... -d '{"loanAmount":1,"loanTermInMonths":9999,"riskBand":"Z"}'  # -> 400, every field at once
-curl localhost:8082/v1/quotes -d '{}'                                  # -> 401, no token
+# staff-002 signs in fine, but holds no scopes            -> 403
+curl -s -c jar2 localhost:8081/api/session -d '{"staffId":"staff-002","password":"demo-password"}'
+curl -s -b jar2 localhost:8081/api/v1/quotes -d '{"loanAmount":250000.00,"loanTermInMonths":240,"riskBand":"B"}'
+
+# a wrong password and an unknown staff id are the same answer
+curl -s localhost:8081/api/session -d '{"staffId":"staff-001","password":"wrong"}'
+curl -s localhost:8081/api/session -d '{"staffId":"nobody","password":"demo-password"}'
+
+# every invalid field at once                             -> 400
+curl -s -b jar localhost:8081/api/v1/quotes -d '{"loanAmount":1,"loanTermInMonths":9999,"riskBand":"Z"}'
+
+# signing out invalidates the session server side         -> 401 afterwards
+curl -s -b jar -X DELETE localhost:8081/api/session
 ```
+
+The vendor mock fails 15% of requests and stalls another 10% past the Middleware's budget, because
+the challenge asks it to misbehave. The Middleware absorbs most of that; set `CQAPI_FAILURE_RATE=0`
+in `.env` to stop it entirely.
+
+`make token` still mints a bearer for calling the Middleware directly on port 8082, without the BFF.
 
 ## Testing
 
