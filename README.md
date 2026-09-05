@@ -4,35 +4,36 @@ Full-stack take-home: a web app that captures loan details and returns a commiss
 mocked external vendor API.
 
 <p align="center">
-  <img src="design/screenshots/quote-result.png" alt="The quote form with a generated quote: a 1.80% commission rate and a total of $4,500.00" width="720">
+  <img src="design/screenshots/quote-result.png" alt="The result: a 1.80% commission rate and a total of $4,500.00, with the form collapsed below to the values it was submitted with" width="760">
 </p>
 
 <p align="center">
-  <img src="design/screenshots/validation-errors.png" alt="The quote form showing every invalid field at once, each marked inline with an icon and a message" width="352">
-  <img src="design/screenshots/phone-result.png" alt="The same quote result on a phone, with the figures stacked in one column" width="167">
+  <img src="design/screenshots/validation-errors.png" alt="The quote form showing every invalid field at once, each marked inline with an icon and a message" width="380">
+  <img src="design/screenshots/phone-result.png" alt="The same result on a 390px phone, entirely above the fold" width="176">
+  <img src="design/screenshots/phone-validation.png" alt="Validation errors on a phone" width="176">
 </p>
 
 > **These are design mockups, not the running application.** The API works end to end today; the
-> front end is CQ-07 and these screenshots are replaced with the real thing when it ships. The full
-> canvas, thirteen artboards covering every state, is [in the design handoff](tasks/CQ-07.1/plan.md).
+> front end is CQ-07, and these are replaced with real screenshots when it ships. The full canvas,
+> thirteen artboards covering every state on desk and phone, is [the design handoff](tasks/CQ-07.1/plan.md).
 
 > Status: implementation in progress. The API is complete; the front end is next. The single
 > `docker compose up` path lands with CQ-08; native development works today.
 
-| Built | Not yet |
-|---|---|
+| Built                                                    | Not yet                                         |
+|----------------------------------------------------------|-------------------------------------------------|
 | Vendor mock, Middleware, resilience, BFF, design handoff | Web front end (CQ-07), Edge and compose (CQ-08) |
 
 ## Documents
 
-| Document | Holds |
-|---|---|
-| [assumptions.md](design/assumptions.md) | Assumptions, design decisions, scope, delivery tiers |
-| [contract.md](design/contract.md) | Schemas, validation rules, commission formula, error taxonomy, resilience budgets, auth, config |
-| [register.md](tasks/register.md) | Task register, one PR per task |
-| [cqapi.openapi.yaml](api/cqapi.openapi.yaml) | The vendor's published contract |
-| [middleware.openapi.yaml](api/middleware.openapi.yaml) | Our published contract |
-| [design/canvas/](design/canvas/) | Design canvas sources, one artboard per state |
+| Document                                               | Holds                                                                                           |
+|--------------------------------------------------------|-------------------------------------------------------------------------------------------------|
+| [assumptions.md](design/assumptions.md)                | Assumptions, design decisions, scope, delivery tiers                                            |
+| [contract.md](design/contract.md)                      | Schemas, validation rules, commission formula, error taxonomy, resilience budgets, auth, config |
+| [register.md](tasks/register.md)                       | Task register, one PR per task                                                                  |
+| [cqapi.openapi.yaml](api/cqapi.openapi.yaml)           | The vendor's published contract                                                                 |
+| [middleware.openapi.yaml](api/middleware.openapi.yaml) | Our published contract                                                                          |
+| [design/canvas/](design/canvas/)                       | Design canvas sources, one artboard per state                                                   |
 
 `assumptions.md` is the *why*. `contract.md` is the *what*, and is what the code is tested against.
 
@@ -41,13 +42,13 @@ mocked external vendor API.
 Five components behind a single browser visible origin. The front end never reaches the Middleware,
 and the vendor `api-key` never leaves the Middleware.
 
-| Component | Stack | Port | Owns |
-|---|---|---|---|
-| Edge | nginx | 8080 | Single origin, serves FE assets with SPA fallback, routes `/api` |
-| Web Front End | React, Vite | via Edge | Form, inline validation, loading, error and result states |
-| BFF | Go | 8081 | Staff session cookie, cookie to bearer exchange, user facing error wording |
-| Middleware | Go | 8082 | Claim verification, entitlement, authoritative validation, resilience, holds the `api-key` |
-| cqapi-mock | Go | 8083 | Stand in for the vendor: contract, `api-key` enforcement, failure and latency injection |
+| Component     | Stack       | Port     | Owns                                                                                       |
+|---------------|-------------|----------|--------------------------------------------------------------------------------------------|
+| Edge          | nginx       | 8080     | Single origin, serves FE assets with SPA fallback, routes `/api`                           |
+| Web Front End | React, Vite | via Edge | Form, inline validation, loading, error and result states                                  |
+| BFF           | Go          | 8081     | Staff session cookie, cookie to bearer exchange, user facing error wording                 |
+| Middleware    | Go          | 8082     | Claim verification, entitlement, authoritative validation, resilience, holds the `api-key` |
+| cqapi-mock    | Go          | 8083     | Stand in for the vendor: contract, `api-key` enforcement, failure and latency injection    |
 
 <img src="design/design.svg">
 
@@ -131,7 +132,11 @@ curl -s -b jar localhost:8081/api/v1/quotes \
 ```
 
 ```json
-{"quoteId":"7c4677e6-...","commissionRate":0.0180,"totalCommission":4500.00}
+{
+  "quoteId": "7c4677e6-...",
+  "commissionRate": 0.0180,
+  "totalCommission": 4500.00
+}
 ```
 
 Staff are listed in [config/staff.csv](config/staff.csv), which stands in for the identity provider,
@@ -185,12 +190,12 @@ make help
 Every target is named after the thing it acts on, so `cmd/cqapp-bff` is `make run-cqapp-bff`.
 Development only tools carry a `dev-` prefix.
 
-| Target | Does |
-|---|---|
-| `env` | Create `.env` from `.env.example` |
-| `run-cqapi-mock`, `run-cqapp-middleware`, `run-cqapp-bff` | Run one service natively |
-| `dev-staff` | Add a staff member, prompting for a password |
-| `dev-token` | Print a bearer token, to call the middleware without the BFF |
-| `build` | Build every service into `bin/` |
-| `test`, `cover`, `vet`, `lint`, `check` | See above |
-| `fmt`, `tidy`, `clean` | Housekeeping |
+| Target                                                    | Does                                                         |
+|-----------------------------------------------------------|--------------------------------------------------------------|
+| `env`                                                     | Create `.env` from `.env.example`                            |
+| `run-cqapi-mock`, `run-cqapp-middleware`, `run-cqapp-bff` | Run one service natively                                     |
+| `dev-staff`                                               | Add a staff member, prompting for a password                 |
+| `dev-token`                                               | Print a bearer token, to call the middleware without the BFF |
+| `build`                                                   | Build every service into `bin/`                              |
+| `test`, `cover`, `vet`, `lint`, `check`                   | See above                                                    |
+| `fmt`, `tidy`, `clean`                                    | Housekeeping                                                 |

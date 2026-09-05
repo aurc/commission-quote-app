@@ -204,7 +204,12 @@ INVALID_ERRORS = {'amount': "Enter an amount between $1,000.00 and $5,000,000.00
 
 
 def result_panel(s):
-    return f'''      <div style="background: #f6f2f5; border: 1px solid #dee2e6; border-radius: 8px; padding: {s.card_pad};">
+    """The answer, at the top of the page.
+
+    White, because it is now the primary surface: the page ground is the tint,
+    so a tinted panel would barely separate from it.
+    """
+    return f'''      <div style="background: #ffffff; border: 1px solid #dee2e6; border-radius: 8px; padding: {s.card_pad};">
         <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 18px;">
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="#870e40" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 9.5 7 13l7.5-8"></path></svg>
           <h2 style="margin: 0; font-size: 18px; font-weight: 600;">Quote generated</h2>
@@ -226,6 +231,29 @@ def result_panel(s):
         <p style="margin: 16px 0 0; font-size: 13px; line-height: 1.5; color: #68696b;">
           Advisory only and not binding. Nothing is stored, so generate a new quote rather than returning to this one.
         </p>
+      </div>'''
+
+
+def collapsed_form(s, staff):
+    """What was asked, once the answer is on screen.
+
+    The form's job is done when it is submitted, and a full form above the
+    result pushes the answer off a phone screen. It collapses to the values it
+    was submitted with, which the result needs anyway: a quote without its
+    inputs cannot be checked, and after an edit you could not tell which numbers
+    produced it.
+    """
+    name = (f'''        <div style="font-size: 13px; color: #68696b; margin-bottom: 10px;">Signed in as <span style="color: #212529; font-weight: 500;">{staff}</span></div>'''
+            if not s.bar_name else '')
+    return f'''      <div style="background: #f6f2f5; border: 1px solid #dee2e6; border-radius: 8px; padding: {s.card_pad};">
+{name}
+        <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between;">
+          <div>
+            <div style="font-size: 13px; color: #68696b; margin-bottom: 2px;">Quote for</div>
+            <div style="font-size: 15px; font-weight: 500; color: #212529;">$250,000.00 &middot; 240 months &middot; Band B</div>
+          </div>
+          <button style="height: 44px; padding: 0 18px; border: 1px solid #870e40; border-radius: 6px; background: #ffffff; color: #870e40; font: 600 15px 'IBM Plex Sans', sans-serif;">Edit</button>
+        </div>
       </div>'''
 
 
@@ -301,7 +329,8 @@ def build(mobile):
         'QuoteForm': page(s, form(s, STAFF), staff=STAFF, width=w),
         'QuoteInvalid': page(s, invalid, staff=STAFF, width=w),
         'QuoteSubmitting': page(s, form(s, STAFF, submitting=True), staff=STAFF, width=w),
-        'Result': page(s, form(s, STAFF) + '\n' + result_panel(s), staff=STAFF, width=w),
+        # The answer first, then what was asked. See collapsed_form.
+        'Result': page(s, result_panel(s) + '\n' + collapsed_form(s, STAFF), staff=STAFF, width=w),
         'NotEntitled': page(s, not_entitled(s), staff="Sam Ellis", width=w),
         'Unavailable': page(s, form(s, STAFF) + '\n' + unavailable(s), staff=STAFF, width=w),
     }
