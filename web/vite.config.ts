@@ -13,5 +13,12 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: './src/test-setup.ts',
     globals: true,
+    coverage: {
+      provider: 'v8',
+      reporter: ['text-summary', 'lcov'],
+      // Entry points and icon markup carry no logic worth asserting on.
+      exclude: ['src/main.tsx', 'src/test-setup.ts', 'src/components/icons.tsx', '**/*.test.*'],
+      thresholds: { statements: 80, branches: 75, functions: 75, lines: 80 },
+    },
   },
 });

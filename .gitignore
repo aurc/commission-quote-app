@@ -19,3 +19,11 @@ node_modules/
 .DS_Store
 *.bkp
 .$*.bkp
+
+# The seeded design canvas: 2.5MB of the design tool's own editor payload, not
+# our source. The artboards, canvas.json and build.py regenerate it.
+design/canvas/commission-quote-app-design.html
+
+# Coverage output
+coverage.out
+web/coverage/

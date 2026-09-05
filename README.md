@@ -17,15 +17,11 @@ mocked external vendor API.
 
 > Screenshots of the running application, taken end to end through the real stack: a real session, a
 > real quote from the mocked vendor, real quote identifiers. Every state is drawn in the
-> [design canvas](tasks/CQ-07.1/plan.md) first, seventeen artboards on desk and phone, with the
-> [tokens](design/screenshots/design-tokens.png) and their measured contrast ratios.
+> [design canvas](design/commission-quote-app-design.pdf) first, seventeen artboards on desk and
+> phone, with the [tokens](design/screenshots/design-tokens.png) and their measured contrast ratios.
 
-> Status: the API and the front end work end to end. The single `docker compose up` path lands with
-> CQ-08; native development works today.
+> Status: complete. `docker compose up` runs the whole stack on one origin.
 
-| Built                                                    | Not yet                                         |
-|----------------------------------------------------------|-------------------------------------------------|
-| Vendor mock, Middleware, resilience, BFF, design handoff | Web front end (CQ-07), Edge and compose (CQ-08) |
 
 ## Documents
 
@@ -71,7 +67,7 @@ internal/
   cqappmiddleware/  -> cmd/cqapp-middleware
   cqapimock/        -> cmd/cqapi-mock
 web/          React SPA: components, one stylesheet, tokens
-deploy/       nginx, Dockerfiles, docker compose            (CQ-08)
+deploy/       nginx, Dockerfiles, docker compose
 config/       staff.csv and credentials.csv, the identity fixtures
 design/       assumptions, contract, diagram
 tasks/        task register and per task plans
@@ -87,32 +83,45 @@ Go package names cannot, so `cmd/cqapp-bff` pairs with `internal/cqappbff`.
 
 ## Design, Assumptions & Approach
 
-The document [assumptions.md](design/assumptions.md) brings assumptions and design decisions applied to this project.
+[assumptions.md](design/assumptions.md) holds the assumptions and design decisions applied to this
+project, and [contract.md](design/contract.md) holds the detail the code is tested against.
 
-This work follows an AI first approach, and for transparency I break the work into separate tasks,
-with a dedicated commit for the AI planned work and one commit for the finished task.
+This work follows an AI first approach, using Anthropic Claude Code, which I use both personally and
+professionally. For transparency I broke the work into separate tasks, each with a dedicated commit
+for the AI planned work and one for the finished task. The task register is at
+[tasks/register.md](tasks/register.md); each task has a `code`, and the PR addressing it quotes that
+`code` at the start of its title.
 
-The task register is at [tasks/register.md](tasks/register.md). Each task has a `code`, and the PRs
-that address those tasks quote the `code` at the beginning of the title.
-
-The AI tool utilised is Anthropic Claude Code. I have great familiarity with the tool which I use
-both personally and professionally.
-
-A full account of how AI was used lands with CQ-08.
+The register, the commit history and the PR bodies are the account of how it was used. Every design
+decision that could reasonably have gone another way was argued in the PR that made it, so the
+reasoning is reviewable rather than asserted here.
 
 ## Getting started
 
-Requires Go 1.26 and Node 22 or newer. Nothing else; `golangci-lint` is used if installed and
-skipped if not.
+First time here? [PREREQUISITES.md](PREREQUISITES.md) installs Docker, Go and Node on macOS, step by
+step.
+
+### The whole stack, one command
 
 ```sh
-make env     # writes .env from .env.example, development values only
+docker compose -f deploy/compose.yaml up --build     # or: make up
 ```
 
-`.env` is gitignored. Nothing in `.env.example` is a secret; in a deployed environment every value
-comes from the secret manager through the same `SecretProvider` interface.
+Then open **http://localhost:8080** and sign in as `staff-001` with `demo-password`.
 
-### Running
+That is everything: the front end, the Edge, the BFF, the Middleware and the vendor mock. No `.env`
+needed, since compose carries development defaults. `make down` stops it.
+
+Only the Edge publishes a port. The Middleware and the vendor mock are reachable on the compose
+network and from nowhere else, which is the isolation the design claims.
+
+### Or run the services natively
+
+For working on the code. Needs Go and Node.
+
+```sh
+make env                     # writes .env from .env.example, development values only
+```
 
 Four terminals, or background them:
 
@@ -123,8 +132,11 @@ make run-cqapp-bff           # bff,             port 8081
 make run-cqapp-web           # front end,       port 5173
 ```
 
-Then open http://localhost:5173 and sign in as `staff-001` with `demo-password`. The Vite dev server
-proxies `/api` to the BFF, standing in for the Edge until CQ-08.
+Then open **http://localhost:5173**. The Vite dev server proxies `/api` to the BFF, standing in for
+the Edge.
+
+`.env` is gitignored. Nothing in `.env.example` is a secret; in a deployed environment every value
+comes from the secret manager through the same `SecretProvider` interface.
 
 ### Or drive the API directly
 
@@ -184,11 +196,47 @@ make test-web  # front end tests
 make cover     # coverage per package
 make lint      # go vet, then golangci-lint if installed
 make check     # fmt, vet and both suites. Run this before opening a PR
+make smoke     # the Postman collection, against a running stack
+make ci        # everything CI runs, minus the containers
 ```
 
-Tests use `httptest` fakes and never touch the network, so they do not need either service running.
-`.env` is deliberately not exported into `make test`: a test that passes or fails depending on a
-developer's environment is worse than no test.
+### Continuous integration
+
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs three jobs, one per way this can break.
+
+| Job | Does |
+|---|---|
+| Services | gofmt, vet, build, `go test -race`, coverage of `internal/` gated at 80% |
+| Front end | Types, build, tests with coverage gated at 80% statements and 75% branches |
+| Stack | Builds the images, starts everything with no `.env`, checks the internal services are loopback only, then runs the Postman collection against it |
+
+Each mirrors a make target, so anything CI fails on reproduces locally with one command. Current
+coverage is 86.8% for `internal/` and 88.3% for the front end.
+
+The race detector is the point of running the service tests in CI: the failure injector, the session
+store and the circuit breaker are all shared across goroutines.
+
+### Exercising the APIs on their own
+
+[postman/](postman/) holds a collection with one folder per component, so each API can be driven
+without the others. Import it into Postman with `postman/local.postman_environment.json`, or run it
+headlessly.
+
+The default stack publishes only the Edge, so the Middleware and the vendor mock cannot be reached
+from your machine. That is deliberate, and it is the isolation the design claims. To exercise them,
+opt out of it locally:
+
+```sh
+make up-debug   # the same stack, with 8081, 8082 and 8083 published on loopback
+make smoke      # 19 requests, 29 assertions
+```
+
+`make up` remains the normal way to run it, with everything but the Edge closed.
+
+Every request carries assertions, so the collection is a smoke test as well as a set of examples. The
+Middleware folder mints its own bearer token in a pre-request script, so it needs no BFF and no
+`make dev-token`. The request worth reading is *Unentitled subject claiming the scope*: the token asks
+for `quote:generate`, and the Middleware refuses because its own entitlement source does not grant it.
 
 ## Make targets
 

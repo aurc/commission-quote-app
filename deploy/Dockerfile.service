@@ -1,0 +1,37 @@
+# One Dockerfile for all three Go services.
+#
+# Named .service rather than .go: Go's tooling treats any *.go path as source,
+# so `go fmt ./...` tried to compile the Dockerfile.
+#
+# They share a module, so the only difference is which cmd/ directory is built.
+# Three near identical files would drift, and the one that drifted would be the
+# one nobody rebuilt.
+#
+#   docker build -f deploy/Dockerfile.service --build-arg SERVICE=cqapp-bff .
+
+FROM golang:1.26 AS build
+ARG SERVICE
+WORKDIR /src
+
+# Dependencies first, so a code change does not re-download the module cache.
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+# Static, stripped, reproducible enough: nothing in the runtime image can link
+# against a C library, because there is no C library in it.
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/service ./cmd/${SERVICE}
+
+# No shell, no package manager, no libc. A container that is somehow reached
+# cannot be explored from inside it. Carries CA certificates, for the day the
+# vendor is a real HTTPS endpoint.
+FROM gcr.io/distroless/static:nonroot
+WORKDIR /app
+
+COPY --from=build /out/service /app/service
+# Baked in so the image is self contained; compose also mounts them read only,
+# so editing a fixture and restarting works without a rebuild.
+COPY config/ /app/config/
+
+USER nonroot:nonroot
+ENTRYPOINT ["/app/service"]

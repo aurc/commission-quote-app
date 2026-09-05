@@ -41,9 +41,32 @@ test: ## Run Go tests with the race detector
 test-web: ## Run front end tests
 	@cd web && npm test --silent
 
+.PHONY: smoke
+smoke: ## Run the Postman collection against a running stack
+	@cd web && npx --yes newman run ../postman/commission-quote.postman_collection.json \
+		-e ../postman/local.postman_environment.json --reporters cli
+
 .PHONY: cover
 cover: ## Report test coverage per package
 	$(GO) test -cover ./...
+
+# The gate is on internal/, where the logic is. cmd/ is wiring, and it is
+# covered by the compose smoke test rather than by unit tests, so including it
+# would only teach people to ignore the number.
+GO_COVER_MIN ?= 80
+
+.PHONY: cover-check
+cover-check: ## Fail if Go coverage of internal/ falls below GO_COVER_MIN
+	@$(GO) test -coverpkg=./internal/... -coverprofile=coverage.out ./internal/... > /dev/null
+	@$(GO) tool cover -func=coverage.out | tail -1
+	@total=$$($(GO) tool cover -func=coverage.out | tail -1 | awk '{print $$NF}' | tr -d '%'); \
+	  awk -v t="$$total" -v m="$(GO_COVER_MIN)" 'BEGIN { \
+	    if (t+0 < m+0) { printf "coverage %.1f%% is below the %s%% minimum\n", t, m; exit 1 } \
+	    printf "coverage %.1f%% meets the %s%% minimum\n", t, m }'
+
+.PHONY: cover-web
+cover-web: ## Front end coverage, thresholds enforced by vite.config.ts
+	@cd web && npx vitest run --coverage
 
 .PHONY: vet
 vet: ## Run go vet
@@ -69,12 +92,31 @@ tidy: ## Tidy module requirements
 .PHONY: check
 check: fmt vet test test-web ## Format, vet and test everything. Run before opening a PR
 
+.PHONY: ci
+ci: vet cover-check cover-web ## Everything CI runs, minus the containers
+
 .PHONY: clean
 clean: ## Remove build output
-	rm -rf $(BIN) web/dist
+	rm -rf $(BIN) web/dist web/coverage coverage.out
 
 # Native dev. One target per cmd/ entry, named after it. The reviewer path is
 # docker compose, added in CQ-08.
+.PHONY: up
+up: ## Run the whole stack in Docker on http://localhost:8080
+	docker compose -f deploy/compose.yaml up --build
+
+.PHONY: up-debug
+up-debug: ## Run the stack with the internal services published, for the Postman collection
+	docker compose -f deploy/compose.yaml -f deploy/compose.debug.yaml up --build
+
+.PHONY: down
+down: ## Stop the stack and remove its containers
+	docker compose -f deploy/compose.yaml -f deploy/compose.debug.yaml down --remove-orphans
+
+.PHONY: logs
+logs: ## Follow the stack's logs
+	docker compose -f deploy/compose.yaml logs -f
+
 .PHONY: env
 env: ## Create .env from .env.example if it does not exist
 	@if [ -f .env ]; then \
