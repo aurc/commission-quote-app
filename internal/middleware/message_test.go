@@ -25,7 +25,7 @@ func TestMessagesDoNotContainUICopy(t *testing.T) {
 			return callWith(t, newMiddleware(t, okVendor(t)), "")
 		}},
 		{"forbidden", func(t *testing.T) *httptest.ResponseRecorder {
-			return callWith(t, newMiddleware(t, okVendor(t)), "Bearer "+mint(t, tokenOpts{subject: "staff-002"}))
+			return callWith(t, newMiddleware(t, okVendor(t)), "Bearer "+mint(t, tokenOpts{subject: unentitledSubject(t)}))
 		}},
 		{"validation", func(t *testing.T) *httptest.ResponseRecorder {
 			return quote(t, newMiddleware(t, okVendor(t)), `{"loanAmount":1,"loanTermInMonths":1,"riskBand":"Z"}`)

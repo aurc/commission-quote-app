@@ -4,15 +4,58 @@ import (
 	"bytes"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
 
 	"github.com/aurc/commission-quote-app/internal/middleware"
 	"github.com/aurc/commission-quote-app/internal/platform/logging"
+	"github.com/aurc/commission-quote-app/internal/platform/staffdir"
 )
 
 const validRequest = `{"loanAmount":250000.00,"loanTermInMonths":240,"riskBand":"B"}`
+
+// fixturePath is the committed staff file. Tests authorise against the real
+// implementation over the real fixture, so no staff identifier is written into
+// Go code and a fixture edit cannot leave these tests passing against something
+// the service no longer does.
+func fixturePath() string { return filepath.Join("..", "..", "config", "staff.csv") }
+
+func staffFixture(t *testing.T) *staffdir.Directory {
+	t.Helper()
+	d, err := staffdir.Load(fixturePath())
+	if err != nil {
+		t.Fatalf("config/staff.csv must load: %v", err)
+	}
+	return d
+}
+
+// entitledSubject returns a staff member the fixture grants the scope to.
+func entitledSubject(t *testing.T) string {
+	t.Helper()
+	for _, s := range staffFixture(t).All() {
+		if slices.Contains(s.Scopes, middleware.ScopeQuoteGenerate) {
+			return s.ID
+		}
+	}
+	t.Fatalf("the fixture needs a staff member holding %s", middleware.ScopeQuoteGenerate)
+	return ""
+}
+
+// unentitledSubject returns an authenticated staff member holding no grant.
+// Without one, the 403 path cannot be exercised.
+func unentitledSubject(t *testing.T) string {
+	t.Helper()
+	for _, s := range staffFixture(t).All() {
+		if !slices.Contains(s.Scopes, middleware.ScopeQuoteGenerate) {
+			return s.ID
+		}
+	}
+	t.Fatalf("the fixture needs a staff member without %s, or 403 is untested", middleware.ScopeQuoteGenerate)
+	return ""
+}
 
 // vendorResponse is what a well behaved CQAPI returns for validRequest.
 const vendorResponse = `{"quoteId":"7c4677e6-b95b-4ee8-bcf5-c17bbda9d63a","commissionRate":0.0180,"totalCommission":4500.00}`
@@ -104,7 +147,7 @@ func newMiddlewareWithLogs(t *testing.T, vendor *fakeVendor, logs *testBuffer) h
 
 	log := logging.New(logging.Options{Component: "middleware", Output: logs})
 	client := middleware.NewVendorClient(cfg.VendorBaseURL, cfg.VendorAPIKey, cfg.VendorTimeout, log)
-	return middleware.NewRouterWith(cfg, middleware.DefaultEntitlements(), client, log)
+	return middleware.NewRouterWith(cfg, staffFixture(t), client, log)
 }
 
 // quote posts a body as an entitled caller.
@@ -126,5 +169,5 @@ func newMiddlewareWithConfig(t *testing.T, vendor *fakeVendor, cfg middleware.Co
 	}
 	log := logging.New(logging.Options{Component: "middleware", Output: logs})
 	client := middleware.NewVendorClient(cfg.VendorBaseURL, cfg.VendorAPIKey, cfg.VendorTimeout, log)
-	return middleware.NewRouterWith(cfg, middleware.DefaultEntitlements(), client, log)
+	return middleware.NewRouterWith(cfg, staffFixture(t), client, log)
 }

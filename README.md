@@ -107,7 +107,7 @@ Staff are listed in [config/staff.csv](config/staff.csv), which stands in for th
 entitlement source. Add a row and re-run to add a user.
 
 ```sh
-make token ARGS='-sub staff-002'   # authenticated, but not entitled  -> 403
+make token ARGS='-sub staff-002'   # a row with no scopes             -> 403
 make token ARGS='-scope ""'        # does not request the scope       -> 403
 curl ... -d '{"loanAmount":1,"loanTermInMonths":9999,"riskBand":"Z"}'  # -> 400, every field at once
 curl localhost:8082/v1/quotes -d '{}'                                  # -> 401, no token

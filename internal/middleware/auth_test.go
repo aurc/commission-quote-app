@@ -36,7 +36,7 @@ func mint(t *testing.T, o tokenOpts) string {
 	t.Helper()
 
 	if o.subject == "" {
-		o.subject = middleware.SeedEntitledStaff
+		o.subject = entitledSubject(t)
 	}
 	if o.scope == nil {
 		o.scope = []string{middleware.ScopeQuoteGenerate}
@@ -159,7 +159,7 @@ func TestAlgorithmIsPinned(t *testing.T) {
 	claims := jwt.MapClaims{
 		"iss":   middleware.Issuer,
 		"aud":   middleware.Audience,
-		"sub":   middleware.SeedEntitledStaff,
+		"sub":   entitledSubject(t),
 		"scope": []string{middleware.ScopeQuoteGenerate},
 		"exp":   time.Now().Add(time.Minute).Unix(),
 	}
@@ -188,7 +188,7 @@ func TestEntitlementIsDecidedByTheMiddlewareNotTheToken(t *testing.T) {
 			// The forged case. The caller writes itself the scope; the
 			// Middleware's own source does not grant it.
 			name:  "subject not entitled, even though the token claims the scope",
-			token: tokenOpts{subject: middleware.SeedUnentitledStaff},
+			token: tokenOpts{subject: unentitledSubject(t)},
 		},
 		{
 			name:  "unknown subject",

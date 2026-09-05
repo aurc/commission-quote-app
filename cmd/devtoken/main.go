@@ -10,8 +10,8 @@
 // BFF_MIDDLEWARE_SIGNING_KEY the Middleware verifies with, so anyone who can run
 // it already holds the key.
 //
-//	make token
-//	make token ARGS='-sub staff-002'      # a subject with no entitlement
+//	make token                            # the first entitled staff member
+//	make token ARGS='-sub <id>'           # any id from config/staff.csv
 //	make token ARGS='-scope ""'           # a token that does not request the scope
 package main
 
@@ -19,19 +19,30 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 
 	"github.com/aurc/commission-quote-app/internal/middleware"
+	"github.com/aurc/commission-quote-app/internal/platform/staffdir"
 )
 
 func main() {
-	subject := flag.String("sub", middleware.SeedEntitledStaff, "staff subject to issue the token for")
+	subject := flag.String("sub", "", "staff subject, defaults to the first entitled staff member in the fixture")
 	scope := flag.String("scope", middleware.ScopeQuoteGenerate, "space separated scopes to request, empty for none")
 	ttl := flag.Duration("ttl", time.Minute, "how long the token is valid for")
 	flag.Parse()
+
+	if *subject == "" {
+		found, err := firstEntitled()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "devtoken: %v\n", err)
+			os.Exit(1)
+		}
+		*subject = found
+	}
 
 	key := os.Getenv("BFF_MIDDLEWARE_SIGNING_KEY")
 	if key == "" {
@@ -58,4 +69,23 @@ func main() {
 		os.Exit(1)
 	}
 	fmt.Println(signed)
+}
+
+// firstEntitled picks a usable default from the staff fixture, so this tool has
+// no staff identifier baked into it and keeps working when the fixture changes.
+func firstEntitled() (string, error) {
+	path := os.Getenv("STAFF_FILE")
+	if path == "" {
+		path = "config/staff.csv"
+	}
+	dir, err := staffdir.Load(path)
+	if err != nil {
+		return "", fmt.Errorf("%w (or pass -sub)", err)
+	}
+	for _, s := range dir.All() {
+		if slices.Contains(s.Scopes, middleware.ScopeQuoteGenerate) {
+			return s.ID, nil
+		}
+	}
+	return "", fmt.Errorf("no staff member in %s holds %s, pass -sub", path, middleware.ScopeQuoteGenerate)
 }
