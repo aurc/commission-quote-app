@@ -1,12 +1,21 @@
 #!/bin/sh
-# Render README screenshots from the artboards, so they cannot show a design
-# that no longer exists.
+# Render the design token sheet from the artboards.
+#
+# The README's application screenshots are captured from the RUNNING app, not
+# from these artboards: once the thing exists, a picture of the design is a
+# picture of the wrong thing. Only the token sheet is rendered here, because it
+# is a design reference rather than a screen.
 #
 # Headless Chrome will not size a window below 500px wide: it lays the page out
 # at 500 and crops the PNG, which silently produces a phone screenshot of a
 # desktop layout. Phones are therefore rendered inside an iframe of exactly the
 # phone width and cropped back to it, so the page really sees 390.
 set -e
+
+# Regenerate the artboards first. Screenshots rendered from stale artboards show
+# a design that no longer exists, and nothing else would catch it.
+python3 build.py > /dev/null
+
 CHROME="${CHROME:-/Applications/Google Chrome.app/Contents/MacOS/Google Chrome}"
 WORK=$(mktemp -d)
 OUT=../screenshots
@@ -30,33 +39,10 @@ shot() { # name width height out
   "$CHROME" --headless --disable-gpu --hide-scrollbars --force-device-scale-factor=2 \
     --virtual-time-budget=3000 --window-size="$2,$3" \
     --screenshot="$WORK/$4.png" "file://$WORK/$1.html" >/dev/null 2>&1
-  sips -Z 1400 "$WORK/$4.png" --out "$OUT/$4.png" >/dev/null
+  sips -Z 1200 "$WORK/$4.png" --out "$OUT/$4.png" >/dev/null
   echo "  $4.png"
 }
 
-phone() { # name width height out
-  python3 - "$WORK" "$1" "$2" "$3" <<'PY'
-import pathlib, sys
-work, name, w, h = sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4])
-pathlib.Path(f'{work}/_frame_{name}.html').write_text(
-    '<!doctype html><html><head><meta charset="utf-8"><style>'
-    'html,body{margin:0;height:100%;background:#ffffff;}'
-    'body{display:flex;justify-content:center;align-items:flex-start;}'
-    f'iframe{{width:{w}px;height:{h}px;border:0;display:block;}}</style></head>'
-    f'<body><iframe src="./{name}.html" scrolling="no"></iframe></body></html>')
-PY
-  "$CHROME" --headless --disable-gpu --hide-scrollbars --force-device-scale-factor=2 \
-    --virtual-time-budget=3000 --window-size="560,$3" \
-    --screenshot="$WORK/$4_raw.png" "file://$WORK/_frame_$1.html" >/dev/null 2>&1
-  sips -c "$(( $3 * 2 ))" "$(( $2 * 2 ))" "$WORK/$4_raw.png" --out "$WORK/$4.png" >/dev/null
-  sips -Z 780 "$WORK/$4.png" --out "$OUT/$4.png" >/dev/null
-  echo "  $4.png"
-}
-
-shot Main 880 620 quote-result
-shot QuoteInvalid 880 940 validation-errors
 shot Tokens 1080 780 design-tokens
-phone PhoneResult 390 844 phone-result
-phone PhoneQuoteInvalid 390 940 phone-validation
 
 rm -rf "$WORK"
