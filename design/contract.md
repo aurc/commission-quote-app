@@ -133,12 +133,18 @@ Authoritative in the Middleware. Mirrored in the FE for feedback only. The FE is
 
 | Field              | Rule                                              | Code                 |
 |--------------------|---------------------------------------------------|----------------------|
-| `loanAmount`       | required, number, 1000.00 to 5000000.00 inclusive | `amount_out_of_range`|
+| `loanAmount`       | present, and an unquoted JSON number               | `amount_invalid`     |
 | `loanAmount`       | at most 2 decimal places                          | `amount_precision`   |
-| `loanTermInMonths` | required, integer, 6 to 360 inclusive             | `term_out_of_range`  |
+| `loanAmount`       | 1000.00 to 5000000.00 inclusive                    | `amount_out_of_range`|
+| `loanTermInMonths` | present, and an unquoted JSON number               | `term_invalid`       |
 | `loanTermInMonths` | no fractional part                                | `term_not_integer`   |
+| `loanTermInMonths` | 6 to 360 inclusive                                 | `term_out_of_range`  |
 | `riskBand`         | required, one of `A`, `B`, `C`                    | `risk_band_invalid`  |
-| body               | valid JSON, no unknown fields                     | `malformed_body`     |
+| body               | valid JSON object, no unknown fields               | `malformed_body`     |
+
+`amount_invalid` and `term_invalid` are separate from the range codes because a
+missing field and a quoted `"1000"` are not out of range, and the front end maps
+each code to its own wording. One rule per code.
 
 All failures are collected and returned together, not first failure wins.
 

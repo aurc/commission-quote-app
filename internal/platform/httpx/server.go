@@ -58,10 +58,18 @@ func Serve(ctx context.Context, log *slog.Logger, h http.Handler, opts ServeOpti
 		BaseContext:       func(net.Listener) context.Context { return context.WithoutCancel(ctx) },
 	}
 
+	// Bind before announcing. ListenAndServe would let us log "listening" and
+	// then fail, which reads as a running service in the logs and sends an
+	// operator looking in the wrong place.
+	ln, err := net.Listen("tcp", srv.Addr)
+	if err != nil {
+		return fmt.Errorf("listen on %s: %w", srv.Addr, err)
+	}
+	log.InfoContext(ctx, "listening", slog.Int("port", opts.Port))
+
 	errc := make(chan error, 1)
 	go func() {
-		log.InfoContext(ctx, "listening", slog.Int("port", opts.Port))
-		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		if err := srv.Serve(ln); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			errc <- err
 		}
 	}()
