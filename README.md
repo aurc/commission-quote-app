@@ -51,6 +51,7 @@ internal/
   middleware/ cqapimock/
 web/          React SPA                                    (CQ-07)
 deploy/       nginx, Dockerfiles, docker compose            (CQ-08)
+config/       staff.csv, the identity and entitlement fixture
 design/       assumptions, contract, diagram
 tasks/        task register and per task plans
 source/       the original challenge brief
@@ -101,6 +102,9 @@ budget, because the challenge asks it to misbehave. Repeat the call and you will
 as well as `200`. Set `CQAPI_FAILURE_RATE=0` and `CQAPI_SLOW_RATE=0` in `.env` to stop it.
 
 Things worth trying:
+
+Staff are listed in [config/staff.csv](config/staff.csv), which stands in for the IdP and the
+entitlement source. Add a row and re-run to add a user.
 
 ```sh
 make token ARGS='-sub staff-002'   # authenticated, but not entitled  -> 403

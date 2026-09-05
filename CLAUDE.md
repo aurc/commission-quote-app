@@ -109,6 +109,9 @@ Reviewer run path is `docker compose up`. Makefile targets exist for native dev.
 - **Money is `math/big.Rat`, never `float64`.** `internal/platform/money`. Nothing rounds until a
   boundary, where `RoundHalfUp` is applied once. Boundaries are `int64` cents or ten thousandths and
   report overflow rather than wrapping.
+- **Staff live in `config/staff.csv`, never hard coded.** Read through `internal/platform/staffdir`.
+  The BFF takes identity from it and the Middleware takes entitlement, so the two cannot disagree
+  about who exists. Keep at least one member with no scopes or the `403` path stops being tested.
 - **A token's `scope` claim is a request, not a grant.** The BFF writes it and the BFF is the party
   being checked, so trusting it alone is circular. The Middleware decides entitlement from its own
   `Entitlements` source. Both conditions are required.

@@ -45,9 +45,13 @@ func Allows(ctx context.Context, e Entitlements, subject, scope string) (bool, e
 	return slices.Contains(granted, scope), nil
 }
 
-// Seed subjects for the MVP. Two of them, deliberately: with only an entitled
-// user the 403 path would be unreachable and untestable, which is the same flaw
-// that made the original scope check circular.
+// Subjects in the committed staff fixture, config/staff.csv. Named here so
+// tests do not hard code strings that live in a file, and so a fixture edit that
+// removes them fails loudly rather than quietly weakening the tests.
+//
+// Two of them, deliberately: with only an entitled user the 403 path would be
+// unreachable and untestable, which is the same flaw that made the original
+// scope check circular.
 const (
 	// SeedEntitledStaff may generate quotes.
 	SeedEntitledStaff = "staff-001"
@@ -55,7 +59,9 @@ const (
 	SeedUnentitledStaff = "staff-002"
 )
 
-// DefaultEntitlements returns the seeded MVP grant table.
+// DefaultEntitlements returns an in memory grant table matching the committed
+// fixture. Used by tests; the running service loads config/staff.csv through
+// staffdir so that it and the BFF cannot disagree about who exists.
 func DefaultEntitlements() StaticEntitlements {
 	return StaticEntitlements{
 		SeedEntitledStaff:   {ScopeQuoteGenerate},

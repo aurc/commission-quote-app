@@ -1,0 +1,21 @@
+# Staff fixture for local development and the MVP.
+#
+# This one file stands in for two different production systems:
+#
+#   identity      the IdP, which says who a person is and lets them sign in
+#   entitlement   the directory or policy service, which says what they may do
+#
+# They are separate concerns and separate systems in production, reached through
+# the AuthProvider and Entitlements interfaces respectively. They share a file
+# here only because two hand edited lists that must agree is a worse failure
+# mode than one: a staff member who can sign in but is refused every quote.
+#
+# scopes is semicolon separated, and may be empty. An empty scopes column is a
+# real case worth keeping: it is the only way the 403 path gets exercised.
+#
+# Edit and re-run. Nothing here is a secret, and no password is listed: the MVP
+# sign in is deliberately fake and is decided in CQ-06.
+id,name,scopes
+staff-001,Aurelio Calegari,quote:generate
+staff-002,Sam Ellis,
+staff-003,Jordan Pike,quote:generate

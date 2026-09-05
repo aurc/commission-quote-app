@@ -47,9 +47,10 @@ failures that provably produced no quote.
 
 ### CQ-06 BFF and AuthProvider
 
-`AuthProvider` interface with in memory staff session, session cookie, cookie to bearer exchange,
-proxy to Middleware. Owns user facing error wording, mapping the Middleware's `code` to what the
-browser shows, per `contract.md` section 5. No business logic, no vendor credential.
+`AuthProvider` interface over `config/staff.csv`, the same fixture the Middleware reads for
+entitlement, so sign in and authorisation cannot disagree about who exists. Session cookie, cookie to
+bearer exchange, proxy to Middleware. Owns user facing error wording, mapping the Middleware's `code`
+to what the browser shows, per `contract.md` section 5. No business logic, no vendor credential.
 
 ### CQ-07 Web front end
 

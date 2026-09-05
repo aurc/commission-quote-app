@@ -15,6 +15,7 @@ import (
 	"github.com/aurc/commission-quote-app/internal/middleware"
 	"github.com/aurc/commission-quote-app/internal/platform/httpx"
 	"github.com/aurc/commission-quote-app/internal/platform/logging"
+	"github.com/aurc/commission-quote-app/internal/platform/staffdir"
 	"github.com/aurc/commission-quote-app/internal/platform/telemetry"
 )
 
@@ -52,18 +53,24 @@ func run(ctx context.Context) error {
 		}
 	}()
 
-	// MVP entitlements. Production swaps this for directory groups or a policy
-	// decision point behind the same interface.
-	entitlements := middleware.DefaultEntitlements()
+	// MVP entitlements, read from the committed fixture. Production swaps this
+	// for directory groups or a policy decision point behind the same
+	// interface; the Middleware does not change.
+	staff, err := staffdir.Load(cfg.StaffFile)
+	if err != nil {
+		return err
+	}
 
 	log.InfoContext(ctx, "starting middleware",
+		slog.String("staffFile", cfg.StaffFile),
+		slog.Int("staffCount", len(staff.All())),
 		slog.String("vendorBaseUrl", cfg.VendorBaseURL),
 		slog.String("vendorApiKey", cfg.VendorAPIKey.String()),
 		slog.Duration("vendorTimeout", cfg.VendorTimeout),
 		slog.Duration("requestBudget", cfg.RequestBudget),
 	)
 
-	return httpx.Serve(ctx, log, middleware.NewRouter(cfg, entitlements, log), httpx.ServeOptions{
+	return httpx.Serve(ctx, log, middleware.NewRouter(cfg, staff, log), httpx.ServeOptions{
 		Port:         cfg.Port,
 		WriteTimeout: cfg.RequestBudget + 5*time.Second,
 	})

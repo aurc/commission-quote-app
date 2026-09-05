@@ -338,9 +338,31 @@ A request is authorised only when **both** hold:
 | Valid token, scope requested, subject not granted it | `403 FORBIDDEN` |
 | Valid token, scope requested and granted | proceed |
 
-MVP implementation: an in memory grant table seeded with one entitled staff member and one
-unentitled one, so the `403` path is real and testable rather than theoretical. This satisfies
-`assumptions.md` FR4, which assumes pre configured access without saying who holds it.
+MVP implementation: `config/staff.csv`, read through `internal/platform/staffdir`. It carries at
+least one entitled and one unentitled staff member, so the `403` path is real and testable rather
+than theoretical. This satisfies `assumptions.md` FR4, which assumes pre configured access without
+saying who holds it.
+
+### One fixture, two production systems
+
+The BFF reads the same file for identity and the Middleware reads it for entitlement, taking
+different columns:
+
+```
+id,name,scopes
+staff-001,Alex Turner,quote:generate
+staff-002,Sam Ellis,
+```
+
+That sharing is a property of the fixture, not of the design. In production these are two systems:
+the IdP holds identity, the directory or policy service holds entitlement, and neither component
+reads the other's source. They share a file here because the alternative, two hand edited lists that
+must agree, produces a confusing and easily introduced failure: a staff member who signs in
+successfully and is then refused every quote.
+
+`scopes` is semicolon separated and may be empty. An empty column is deliberate and is the only way
+the `403` path gets exercised. A duplicate `id` is rejected at startup, since it would silently
+shadow one row's scopes.
 
 Production: the same interface backed by group membership from the directory, or a policy decision
 point. The interface is the seam; the source changes, the Middleware does not.
@@ -410,6 +432,7 @@ accepts a malformed endpoint and silently drops every trace.
 | `CQAPI_BASE_URL`             | middleware            | `http://cqapi-mock:8083`   | no       |
 | `MIDDLEWARE_BASE_URL`        | bff                   | `http://cqapp-middleware:8082` | no   |
 | `BFF_MIDDLEWARE_SIGNING_KEY` | bff, middleware       | none                       | yes      |
+| `STAFF_FILE`                 | middleware, bff       | `config/staff.csv`         | no       |
 | `PORT`                       | all                   | per component below        | no       |
 | `LOG_LEVEL`                  | all                   | `info`                     | no       |
 | `OTEL_EXPORTER_OTLP_ENDPOINT`| all                   | unset                      | no       |

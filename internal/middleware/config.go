@@ -34,6 +34,11 @@ type Config struct {
 
 	// ClockSkew absorbs disagreement between containers on a 60 second token.
 	ClockSkew time.Duration
+
+	// StaffFile is the fixture standing in for the entitlement source. The BFF
+	// reads the same file for identity, so the two cannot disagree about who
+	// exists.
+	StaffFile string
 }
 
 // Load reads configuration from the environment, reporting every problem at once.
@@ -49,6 +54,7 @@ func Load() (Config, error) {
 		VendorTimeout: l.Duration("MIDDLEWARE_VENDOR_TIMEOUT", 2*time.Second),
 		RequestBudget: l.Duration("MIDDLEWARE_REQUEST_BUDGET", 6*time.Second),
 		ClockSkew:     l.Duration("MIDDLEWARE_CLOCK_SKEW", 5*time.Second),
+		StaffFile:     l.String("STAFF_FILE", "config/staff.csv"),
 	}
 	if err := l.Err(); err != nil {
 		return Config{}, err
