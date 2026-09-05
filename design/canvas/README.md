@@ -11,6 +11,9 @@ Artifact that only opens inside the author's organisation.
 `design/contract.md` section 10; no Bendigo mark appears anywhere, for the reasons in *Branding* in
 `design/assumptions.md`.
 
+The seeded canvas page itself is not committed. It is 2.5MB of the design tool's own editor payload
+rather than anything written here, and everything needed to rebuild it is in this directory.
+
 ## Rebuilding
 
 `build.py` generates every artboard. Desk and phone come from one description of each screen, so the

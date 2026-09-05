@@ -13,7 +13,7 @@ Statuses: `todo`, `in progress`, `done`.
 | CQ-05 | Middleware resilience       | done   | timeouts, retries, circuit breaker                     |
 | CQ-06 | BFF and AuthProvider        | done   | `cmd/cqapp-bff`                                              |
 | CQ-07.1 | Design handoff            | done   | Canvas published, `design/canvas/`                     |
-| CQ-07 | Web front end               | todo   | `web/`                                                 |
+| CQ-07 | Web front end               | done   | `web/`                                                 |
 | CQ-08 | Edge, compose, README       | done   | `deploy/`, run instructions, AI transparency           |
 
 ## Task detail
