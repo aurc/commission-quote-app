@@ -1,0 +1,182 @@
+# The vendor's published contract for the Commission Quote API.
+#
+# This is the vendor's document, not ours. It describes only what the vendor
+# guarantees. Our business rules, such as the accepted loan amount range, are
+# deliberately absent: a real vendor would not know them, and putting them here
+# would blur where authoritative validation lives.
+#
+# Our own contract is api/middleware.openapi.yaml. In the MVP the two are close.
+# They are expected to diverge as the Middleware grows capability, or if the
+# vendor is replaced.
+openapi: 3.1.0
+
+info:
+  title: Commission Quote API
+  version: 1.0.0
+  description: >
+    Vendor system that prices a loan and returns a commission quote.
+    Reproduced here as a mock while the real service is under construction.
+
+servers:
+  - url: http://localhost:8083
+    description: Local mock
+
+paths:
+  /v1/quotes:
+    post:
+      operationId: createQuote
+      summary: Generate a commission quote
+      security:
+        - apiKey: []
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/TraceParent"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QuoteRequest"
+            example:
+              loanAmount: 250000.00
+              loanTermInMonths: 240
+              riskBand: B
+      responses:
+        "201":
+          description: Quote generated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Quote"
+              example:
+                quoteId: 7c4677e6-b95b-4ee8-bcf5-c17bbda9d63a
+                commissionRate: 0.0180
+                totalCommission: 4500.00
+        "400":
+          description: The request does not match the published schema
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: riskBand must be one of A, B, C, got "D"
+        "401":
+          description: >
+            The api-key header was missing or not valid. The body is empty and
+            the response is identical in both cases, so a caller cannot tell
+            which of the two occurred.
+        "503":
+          description: >
+            The request was not processed. Returned when the service is
+            unavailable, and by the mock's failure simulation.
+
+            Deliberately 503 rather than 500: a 500 would be ambiguous for an
+            operation that is not idempotent, since a quote may already have been
+            created. 503 states that nothing happened, which is what makes a
+            retry safe.
+
+  /healthz:
+    get:
+      operationId: health
+      summary: Liveness probe
+      security: []
+      responses:
+        "200":
+          description: Service is up
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    const: ok
+                required: [status]
+                additionalProperties: false
+              example:
+                status: ok
+
+components:
+  securitySchemes:
+    apiKey:
+      type: apiKey
+      in: header
+      name: api-key
+      description: >
+        Server side credential identifying the calling system. Held only by our
+        Middleware and never present in a browser.
+
+  parameters:
+    CorrelationId:
+      name: X-Correlation-Id
+      in: header
+      required: false
+      schema:
+        type: string
+        pattern: "^[A-Za-z0-9._-]{1,64}$"
+      description: Echoed on the response to join logs across systems.
+    TraceParent:
+      name: traceparent
+      in: header
+      required: false
+      schema:
+        type: string
+      description: W3C trace context, propagated so one request is one trace.
+
+  schemas:
+    QuoteRequest:
+      type: object
+      additionalProperties: false
+      required: [loanAmount, loanTermInMonths, riskBand]
+      properties:
+        loanAmount:
+          type: number
+          exclusiveMinimum: 0
+          multipleOf: 0.01
+          description: >
+            Loan principal in AUD, a plain decimal with at most two decimal
+            places. Exponent notation is not accepted.
+          examples: [250000.00]
+        loanTermInMonths:
+          type: integer
+          exclusiveMinimum: 0
+          examples: [240]
+        riskBand:
+          type: string
+          enum: [A, B, C]
+          description: Risk classification. A is low, B standard, C elevated.
+          examples: [B]
+
+    Quote:
+      type: object
+      additionalProperties: false
+      required: [quoteId, commissionRate, totalCommission]
+      properties:
+        quoteId:
+          type: string
+          format: uuid
+          description: >
+            Identifies this quote. Quotes are not stored; the identifier is for
+            correlation only.
+        commissionRate:
+          type: number
+          multipleOf: 0.0001
+          description: Commission rate as a decimal fraction. 0.0180 is 1.80%.
+          examples: [0.0180]
+        totalCommission:
+          type: number
+          multipleOf: 0.01
+          description: Commission payable in AUD, rounded half up to the cent.
+          examples: [4500.00]
+
+    Error:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: string
+          description: >
+            Human readable reason. This is the vendor's own error shape and is
+            not the envelope our services use; translating it is the Middleware's
+            responsibility.
