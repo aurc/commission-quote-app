@@ -1,0 +1,113 @@
+# CQ-04 Middleware core and OpenAPI
+
+## Context
+
+The Middleware is the only component that holds the vendor credential and the only one that decides
+whether a caller may generate a quote. Everything the browser eventually reaches passes through here.
+
+This task builds the request path: verify the caller's claims, validate authoritatively, call the
+vendor once, translate the vendor's world into ours. Retries, backoff and the circuit breaker are
+CQ-05, so a single attempt with a hard timeout is the boundary of this PR.
+
+Contract in `design/contract.md` sections 3 to 7. Published as `api/middleware.openapi.yaml`.
+
+## Deliverables
+
+```
+api/middleware.openapi.yaml   our published contract
+cmd/middleware/main.go
+internal/middleware/
+  auth.go        bearer verification, scope check
+  validate.go    authoritative validation
+  vendor.go      CQAPI client, api-key injection, error translation
+  handler.go     POST /api/v1/quotes
+  config.go
+internal/platform/money/      extracted from internal/cqapi
+```
+
+## Design
+
+### Two things to settle before code
+
+**JWT verification uses `github.com/golang-jwt/jwt/v5`, not hand rolled.**
+CQ-03 hand rolled a UUID because ten lines of bit twiddling did not justify a dependency. This is the
+opposite case. HS256 verification is short but unforgiving: forget to reject `alg: none`, compare the
+MAC with `==`, or skip the `aud` check, and the result still passes every happy path test while being
+trivially forgeable. A well known library is the responsible choice, and the distinction between the
+two cases is worth being explicit about.
+
+**Money parsing moves to `internal/platform/money`.**
+`Cents`, `Rate` and `ParseCents` currently live in `internal/cqapi`. The Middleware needs identical
+parsing to enforce the two decimal place rule, and importing the vendor mock into our own service
+would couple us to a component that is meant to be deleted when the real vendor arrives. The types
+are general money handling, not vendor behaviour, so they move to the platform and `internal/cqapi`
+imports them from there.
+
+### Claim verification
+
+Bearer token per `contract.md` section 7. Verify signature, `iss`, `aud`, `exp`, then require the
+`quote:generate` scope.
+
+- missing, malformed, expired or badly signed: `401 UNAUTHENTICATED`
+- valid token without the scope: `403 FORBIDDEN`
+
+That split matters. A `401` tells the front end to send the user back to sign in; a `403` says
+signing in again will not help.
+
+Small clock skew leeway, since `exp` is 60 seconds and two containers need not agree to the
+millisecond. The leeway is configurable and defaults to a few seconds.
+
+### Validation
+
+Authoritative here, per `contract.md` section 4. Every rule, every failure collected and returned
+together rather than first failure wins, because a form that reveals one error at a time is a poor
+experience and the front end mirrors this list.
+
+Same raw JSON text approach as CQ-03: `999.999` has to be distinguishable from `1000.00`, and a
+quoted `"1000"` has to be rejected. That check earned its place in CQ-03 and is not weakened here.
+
+### Vendor call
+
+A client that attaches `api-key` from the `SecretProvider`, propagates trace context, and bounds a
+single attempt with a timeout. CQ-05 wraps this; nothing here anticipates that beyond keeping the
+call in one place.
+
+The response is decoded, checked against the vendor contract, and re-encoded into ours. Not streamed
+through: we publish a contract and should be able to state that what we return matches it.
+
+**The commission is never recomputed.** The vendor owns the formula, and a Middleware that recomputes
+would silently disagree with the vendor the day their pricing changes. A test proves this by having a
+fake vendor return a commission that does not match the formula and asserting we pass it through
+unchanged.
+
+### Error translation
+
+| Vendor result | Ours | Why |
+|---|---|---|
+| `201`, parseable | `201` | |
+| `201`, unparseable | `502 UPSTREAM_CONTRACT` | They broke the contract |
+| `401` | `502 UPSTREAM_UNAVAILABLE` | Our credential problem, never the user's `401` |
+| `400` | `502 UPSTREAM_CONTRACT` | Our validation and theirs have diverged. Log loudly |
+| `5xx` | `502 UPSTREAM_UNAVAILABLE` | |
+| timeout | `504 UPSTREAM_TIMEOUT` | |
+
+The vendor `400` case is the interesting one. We validated and passed; they rejected. That is a
+contract drift bug on our side, not a user error, so it must not come back as a `400` to the caller.
+
+## Tests
+
+| Area | Cases |
+|---|---|
+| Claims | No header, wrong scheme, bad signature, `alg: none`, expired, wrong `iss`, wrong `aud`, missing scope, valid |
+| Validation | Every edge case in `contract.md` section 4, plus all failures returned together |
+| Boundaries | Amount and term exactly at each limit, inside and outside |
+| Translation | The table above, against a fake vendor |
+| Passthrough | A vendor commission inconsistent with the formula is returned unchanged |
+| Leakage | No `api-key`, bearer token or vendor URL in any response body |
+| Spec | Documented statuses match what the handler emits, required fields enforced, ranges match the validator |
+
+## Verification
+
+`make check` green. Manually against the real CQAPI from CQ-03: a valid request returns a quote; a
+wrong `CQAPI_API_KEY` returns `502` with a message that does not mention credentials, while the log
+records the real cause with the key masked.
