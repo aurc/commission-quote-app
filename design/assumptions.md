@@ -85,17 +85,17 @@ reopening this document.
 
 The table below splits what is built from what is documented as the production step.
 
-| Concern       | In scope for the MVP                                                                          | Production step                                                       |
-|---------------|-----------------------------------------------------------------------------------------------|-----------------------------------------------------------------------|
-| Web Front End | React SPA, form, loading, error and result states                                             | Design system, accessibility audit, localisation                      |
-| Middleware    | Go service, session check, validation, commission orchestration, api-key, resilience, OpenAPI | Claim verification against the real IdP or mesh identity, rate limiting |
-| BFF           | Tiny Go binary, session cookie, proxy to Middleware                                           | OIDC authorisation code flow, distributed session store               |
-| Mocked CQAPI  | Standalone Go binary, api-key enforcement, random failures, latency injection                 | Deleted, replaced by the vendor plus contract tests against their sandbox |
-| Edge          | nginx, single origin, TLS termination point, serves FE assets with SPA fallback, routes `/api` | Managed certificates, WAF, CDN for static assets                      |
-| Staff auth    | `AuthProvider` interface with a fake in-memory Staff session                                  | OIDC against the bank IdP behind the same interface                   |
-| Secrets       | `SecretProvider` interface reading env vars                                                   | Bank secret manager behind the same interface, rotation               |
-| Observability | Structured JSON logs, correlation id propagation, open telemetry traces                       | OTLP collector, dashboards, alerting, SLOs                            |
-| Persistence   | None, stateless                                                                               | Audit store, only if quotes ever become binding                       |
+| Concern       | In scope for the MVP                                                                           | Production step                                                           |
+|---------------|------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------|
+| Web Front End | React SPA, form, loading, error and result states                                              | Design system, accessibility audit, localisation                          |
+| Middleware    | Go service, session check, validation, commission orchestration, api-key, resilience, OpenAPI  | Claim verification against the real IdP or mesh identity, rate limiting   |
+| BFF           | Tiny Go binary, session cookie, proxy to Middleware                                            | OIDC authorisation code flow, distributed session store                   |
+| Mocked CQAPI  | Standalone Go binary, api-key enforcement, random failures, latency injection                  | Deleted, replaced by the vendor plus contract tests against their sandbox |
+| Edge          | nginx, single origin, TLS termination point, serves FE assets with SPA fallback, routes `/api` | Managed certificates, WAF, CDN for static assets                          |
+| Staff auth    | `AuthProvider` interface with a fake in-memory Staff session                                   | OIDC against the bank IdP behind the same interface                       |
+| Secrets       | `SecretProvider` interface reading env vars                                                    | Bank secret manager behind the same interface, rotation                   |
+| Observability | Structured JSON logs, correlation id propagation, open telemetry traces                        | OTLP collector, dashboards, alerting, SLOs                                |
+| Persistence   | None, stateless                                                                                | Audit store, only if quotes ever become binding                           |
 
 ### Delivery Tiers
 
