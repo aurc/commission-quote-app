@@ -17,12 +17,12 @@ const maxRequestBody = 64 << 10
 
 // Handler serves the Middleware's quote endpoint.
 type Handler struct {
-	vendor *VendorClient
+	vendor QuoteSource
 	log    *slog.Logger
 }
 
 // NewHandler returns a Handler.
-func NewHandler(vendor *VendorClient, log *slog.Logger) *Handler {
+func NewHandler(vendor QuoteSource, log *slog.Logger) *Handler {
 	return &Handler{vendor: vendor, log: log}
 }
 
@@ -69,14 +69,19 @@ func (h *Handler) Quote(w http.ResponseWriter, r *http.Request) {
 }
 
 // NewRouter wires the Middleware.
+//
+// Resilience composes outermost first: breaker, retrier, client. The breaker is
+// outside so an open circuit skips the retries entirely, and so it counts one
+// outcome per request the user made rather than one per attempt.
 func NewRouter(cfg Config, ent Entitlements, log *slog.Logger) http.Handler {
-	vendor := NewVendorClient(cfg.VendorBaseURL, cfg.VendorAPIKey, cfg.VendorTimeout, log)
-	return NewRouterWith(cfg, ent, vendor, log)
+	client := NewVendorClient(cfg.VendorBaseURL, cfg.VendorAPIKey, cfg.VendorTimeout, log)
+	resilient := NewBreaker(NewRetrier(client, cfg.Retry, log), cfg.Breaker, log)
+	return NewRouterWith(cfg, ent, resilient, log)
 }
 
-// NewRouterWith is NewRouter with an injected vendor client, so tests can point
-// at a fake vendor without a network.
-func NewRouterWith(cfg Config, ent Entitlements, vendor *VendorClient, log *slog.Logger) http.Handler {
+// NewRouterWith is NewRouter with an injected quote source, so tests can supply
+// a fake vendor, or a bare client without resilience, and never touch a network.
+func NewRouterWith(cfg Config, ent Entitlements, vendor QuoteSource, log *slog.Logger) http.Handler {
 	h := NewHandler(vendor, log)
 	verifier := NewVerifier(cfg.SigningKey, cfg.ClockSkew)
 

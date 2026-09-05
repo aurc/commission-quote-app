@@ -51,9 +51,7 @@ func TestSpecDocumentsExactlyTheStatusesTheHandlerReturns(t *testing.T) {
 	}
 	sort.Strings(documented)
 
-	// Every status the handler can produce in CQ-04. 503 UPSTREAM_CIRCUIT_OPEN
-	// arrives with the breaker in CQ-05 and is documented then, not before.
-	want := []string{"200", "400", "401", "403", "502", "504"}
+	want := []string{"200", "400", "401", "403", "502", "503", "504"}
 	if len(documented) != len(want) {
 		t.Fatalf("documented = %v, want %v", documented, want)
 	}

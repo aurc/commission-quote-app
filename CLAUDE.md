@@ -117,6 +117,11 @@ Reviewer run path is `docker compose up`. Makefile targets exist for native dev.
   `Entitlements` source. Both conditions are required.
 - **The Middleware writes API messages, the BFF writes user copy.** No "sign in again" in a service
   with no browser. `code` is the stable contract; prose is presentation. A test enforces this.
+- **No Go service terminates TLS.** Public TLS is the Edge's, service to service is the mesh
+  sidecar's mTLS. Outbound to the vendor is ours: the Middleware refuses to start on plain HTTP to a
+  non local host, because the `api-key` would cross the network in clear.
+- **Retry only what provably produced no quote**, plus timeouts, which `assumptions.md` 1.5 already
+  accepts regenerating. Never a `500`. The breaker sits outside the retrier.
 - **Numbers arrive as raw JSON text, not decoded floats.** It is the only way to tell `999.999` from
   `1000.00`, and it is what lets a quoted `"1000"` be rejected.
 

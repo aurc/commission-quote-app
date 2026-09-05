@@ -60,9 +60,18 @@ banking system (internal or external).
        step. Concretely, the Middleware does not treat the BFF's word as authority. It verifies the
        token, and separately decides entitlement from its own source, so a compromised BFF cannot
        grant itself a scope.
-    2. [Assumption] Connections are encrypted in a deployed environment, terminated at the Edge. The
-       local compose stack runs plain HTTP: shipping a self signed certificate would add a browser
-       warning and a trust step for a reviewer without demonstrating anything.
+    2. [Assumption] Connections are encrypted in a deployed environment, but not by the application
+       code. Two different mechanisms, neither of them ours:
+        1. Public traffic: TLS terminates at the Edge. The local compose stack runs plain HTTP, since
+           a self signed certificate would add a browser warning and a trust step for a reviewer
+           without demonstrating anything.
+        2. Service to service: mTLS from the service mesh sidecar, which is why the Go services
+           listen on plain HTTP and hold no certificates. TLS terminating at a perimeter and
+           plaintext behind it would be perimeter security, not the zero trust posture claimed above;
+           the mesh is what reconciles the two, and it is assumed rather than built.
+        3. Outbound to the vendor: ours to get right, because the vendor is external and we attach the
+           `api-key` to every call. The Middleware refuses to start if `CQAPI_BASE_URL` is plain HTTP
+           to anything but the local stack. See [contract.md](contract.md) section 7.
     3. [Assumption] System accessed from within Bendigo's perimeter. No public access.
     4. The vendor `api-key` is a server side secret. It is held by the Middleware only. It is never present in FE
        bundles, never in a BFF response, and never crosses the browser boundary. See *API Key Handling*.
