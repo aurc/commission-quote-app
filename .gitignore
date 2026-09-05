@@ -1,0 +1,21 @@
+# Go
+/bin/
+*.test
+*.out
+
+# Node
+node_modules/
+/web/dist/
+
+# Env and secrets
+.env
+.env.local
+*.pem
+*.key
+
+# Editors and OS
+.idea/
+.vscode/
+.DS_Store
+*.bkp
+.$*.bkp
