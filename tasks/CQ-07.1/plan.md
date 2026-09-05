@@ -64,9 +64,14 @@ one primary control besides sign out.
 Phone frames are a real 390x844 viewport, so a frame that fits its content is evidence rather than a
 claim.
 
-## Canvas
+## Output
 
-Published at: https://claude.ai/code/artifact/3f6b2b9b-de87-476d-94d7-66fd355e832b
+The canvas is committed as [commission-quote-app-design.pdf](../../design/commission-quote-app-design.pdf),
+one page per artboard.
 
-Sources are kept in `design/canvas/` so the canvas can be rebuilt or amended without starting over.
-`Main.dc.html` is the quote result, the state the application exists to reach.
+It is a PDF rather than a link because the published canvas shares only within the author's
+organisation: it declares PNG and PDF export, and a canvas that can export is not publicly shareable.
+A reviewer outside the organisation could not open it, so the design travels with the code instead.
+
+Sources are in `design/canvas/`, and `pdf.sh` rebuilds the PDF from them. `Main.dc.html` is the quote
+result, the state the application exists to reach.

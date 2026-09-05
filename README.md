@@ -17,14 +17,11 @@ mocked external vendor API.
 
 > Screenshots of the running application, taken end to end through the real stack: a real session, a
 > real quote from the mocked vendor, real quote identifiers. Every state is drawn in the
-> [design canvas](tasks/CQ-07.1/plan.md) first, seventeen artboards on desk and phone, with the
-> [tokens](design/screenshots/design-tokens.png) and their measured contrast ratios.
+> [design canvas](design/commission-quote-app-design.pdf) first, seventeen artboards on desk and
+> phone, with the [tokens](design/screenshots/design-tokens.png) and their measured contrast ratios.
 
 > Status: complete. `docker compose up` runs the whole stack on one origin.
 
-| Built                                                    | Not yet                                         |
-|----------------------------------------------------------|-------------------------------------------------|
-| Vendor mock, Middleware, resilience, BFF, design handoff | Web front end (CQ-07), Edge and compose (CQ-08) |
 
 ## Documents
 
