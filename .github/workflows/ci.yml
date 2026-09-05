@@ -1,0 +1,134 @@
+# Three jobs, matching the three ways this project can break: the services, the
+# front end, and the stack that puts them together. Each mirrors a make target,
+# so anything CI fails on can be reproduced locally with one command.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  go:
+    name: Services
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Formatting
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "these files are not gofmt clean:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Build every service
+        run: make build
+
+      # The race detector is the point of running these in CI: the injector, the
+      # session store and the circuit breaker are all shared across goroutines.
+      - name: Test with the race detector
+        run: go test -race ./...
+
+      - name: Coverage
+        run: make cover-check
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: go-coverage
+          path: coverage.out
+          retention-days: 7
+
+  web:
+    name: Front end
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - run: npm ci
+
+      - name: Types
+        run: npx tsc --noEmit
+
+      - name: Build
+        run: npx vite build
+
+      # Thresholds live in vite.config.ts, so the gate is the same locally.
+      - name: Test with coverage
+        run: npx vitest run --coverage
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: web-coverage
+          path: web/coverage
+          retention-days: 7
+
+  stack:
+    name: Stack
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # Builds the images and starts everything, with no .env present, which is
+      # exactly what a reviewer cloning this repository has.
+      - name: Start the stack
+        run: docker compose -f deploy/compose.yaml -f deploy/compose.debug.yaml up -d --build --wait
+
+      - name: The isolation the design claims
+        run: |
+          # The debug override binds the internal services to loopback only, so
+          # they must never answer on the host's external address.
+          external=$(hostname -I | awk '{print $1}')
+          for port in 8081 8082 8083; do
+            if curl -sf -m 3 "http://$external:$port/healthz" > /dev/null; then
+              echo "$port answered on $external, which it must not"
+              exit 1
+            fi
+          done
+          echo "8081, 8082 and 8083 are loopback only"
+
+      - name: Smoke test every endpoint
+        run: |
+          npx --yes newman run postman/commission-quote.postman_collection.json \
+            -e postman/local.postman_environment.json --reporters cli
+
+      - name: Logs, if anything failed
+        if: failure()
+        run: docker compose -f deploy/compose.yaml -f deploy/compose.debug.yaml logs --tail 50
+
+      - name: Stop
+        if: always()
+        run: docker compose -f deploy/compose.yaml -f deploy/compose.debug.yaml down --remove-orphans

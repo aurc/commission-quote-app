@@ -152,3 +152,19 @@ Writing it found a bug in the collection rather than the application. The pre-re
 `pm.environment.get('scope') || 'quote:generate'`, and an empty scope is falsy, so the case testing a
 token that does not request the scope still requested it and returned 200. The assertion caught it.
 An empty value that is also a meaningful value cannot go through a `||` default.
+
+## Continuous integration
+
+Added at review's suggestion, and a real gap: nothing was checking the build or coverage other than
+someone remembering to run `make check`.
+
+Three jobs, one per way the project can break, each mirroring a make target so a failure reproduces
+locally. Coverage is gated on `internal/` at 80%, currently 86.8%, and on the front end at 80%
+statements, currently 88.3%. The gate deliberately excludes `cmd/`, which is wiring covered by the
+stack job rather than by unit tests; including it would only teach people to ignore the number.
+
+Adding the gate immediately found something. `internal/platform/authtoken` had **no tests at all**,
+despite being the token signing and verification package: the most security sensitive code here. It
+was exercised indirectly through the Middleware, which is why nothing looked wrong. It now has its
+own tests for algorithm pinning, a wrong key, expiry, a missing expiry, wrong issuer and audience, a
+blank subject, clock skew leeway, and unique token ids.

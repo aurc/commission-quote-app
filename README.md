@@ -197,7 +197,24 @@ make cover     # coverage per package
 make lint      # go vet, then golangci-lint if installed
 make check     # fmt, vet and both suites. Run this before opening a PR
 make smoke     # the Postman collection, against a running stack
+make ci        # everything CI runs, minus the containers
 ```
+
+### Continuous integration
+
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs three jobs, one per way this can break.
+
+| Job | Does |
+|---|---|
+| Services | gofmt, vet, build, `go test -race`, coverage of `internal/` gated at 80% |
+| Front end | Types, build, tests with coverage gated at 80% statements and 75% branches |
+| Stack | Builds the images, starts everything with no `.env`, checks the internal services are loopback only, then runs the Postman collection against it |
+
+Each mirrors a make target, so anything CI fails on reproduces locally with one command. Current
+coverage is 86.8% for `internal/` and 88.3% for the front end.
+
+The race detector is the point of running the service tests in CI: the failure injector, the session
+store and the circuit breaker are all shared across goroutines.
 
 ### Exercising the APIs on their own
 
