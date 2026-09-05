@@ -78,6 +78,10 @@ env: ## Create .env from .env.example if it does not exist
 		cp .env.example .env && echo "created .env from .env.example"; \
 	fi
 
+.PHONY: token
+token: ## Print a development bearer token (ARGS='-sub staff-002')
+	@$(RUN_ENV) $(GO) run ./cmd/devtoken $(ARGS)
+
 .PHONY: run-cqapi-mock run-middleware run-bff
 run-cqapi-mock: ## Run the vendor mock
 	@$(RUN_ENV) $(GO) run ./cmd/cqapi-mock
