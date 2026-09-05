@@ -14,7 +14,7 @@ Statuses: `todo`, `in progress`, `done`.
 | CQ-06 | BFF and AuthProvider        | done   | `cmd/cqapp-bff`                                              |
 | CQ-07.1 | Design handoff            | done   | Canvas published, `design/canvas/`                     |
 | CQ-07 | Web front end               | todo   | `web/`                                                 |
-| CQ-08 | Edge, compose, README       | todo   | `deploy/`, run instructions, AI transparency           |
+| CQ-08 | Edge, compose, README       | wip    | `deploy/`, run instructions, AI transparency           |
 
 ## Task detail
 
