@@ -85,7 +85,7 @@ paths:
               example:
                 error:
                   code: VALIDATION_FAILED
-                  message: Check the highlighted fields.
+                  message: request failed validation
                   details:
                     - field: loanAmount
                       code: amount_out_of_range
@@ -104,7 +104,7 @@ paths:
               example:
                 error:
                   code: UNAUTHENTICATED
-                  message: Your session has expired. Sign in again.
+                  message: bearer token missing, invalid or expired
                   correlationId: 4b1c9f2e7a3d5c81
         "403":
           description: >
@@ -118,7 +118,7 @@ paths:
               example:
                 error:
                   code: FORBIDDEN
-                  message: You do not have access to generate quotes.
+                  message: caller is not entitled to the required scope
                   correlationId: 4b1c9f2e7a3d5c81
         "502":
           description: >
@@ -132,7 +132,7 @@ paths:
               example:
                 error:
                   code: UPSTREAM_UNAVAILABLE
-                  message: Quotes are unavailable right now. Try again shortly.
+                  message: upstream quote provider unavailable
                   correlationId: 4b1c9f2e7a3d5c81
         "504":
           description: The time budget for the vendor call was exhausted.
@@ -143,7 +143,7 @@ paths:
               example:
                 error:
                   code: UPSTREAM_TIMEOUT
-                  message: The quote service took too long. Try again.
+                  message: upstream quote provider timed out
                   correlationId: 4b1c9f2e7a3d5c81
 
   /healthz:
@@ -274,8 +274,14 @@ components:
             message:
               type: string
               description: >
-                Human readable and always safe to display to a staff user. Never
-                reveals internal detail such as upstream hosts or credentials.
+                States the condition in API terms: what happened, not what a
+                person should do about it. This service is internal and has no
+                browser, so it does not write UI copy. The BFF maps `code` to
+                user facing wording.
+
+                Never reveals internal detail such as upstream hosts or
+                credentials. Branch on `code`, which is stable; the message may
+                be reworded.
             details:
               type: array
               description: Present only for VALIDATION_FAILED. Every failed field, together.

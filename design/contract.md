@@ -169,18 +169,52 @@ Single response shape at every layer:
 
 `message` is always safe to render to a staff user. `details` is present only for validation.
 
-| Failure class                     | Middleware        | Code                      | User message                                          |
-|-----------------------------------|-------------------|---------------------------|-------------------------------------------------------|
-| Validation failed                 | `400`             | `VALIDATION_FAILED`       | Check the highlighted fields.                          |
-| Missing or invalid bearer         | `401`             | `UNAUTHENTICATED`         | Your session has expired. Sign in again.               |
-| Valid caller, missing scope       | `403`             | `FORBIDDEN`               | You do not have access to generate quotes.             |
-| Vendor rejected our `api-key`     | `502`             | `UPSTREAM_UNAVAILABLE`    | Quotes are unavailable right now. Try again shortly.   |
-| Vendor 5xx, retries exhausted     | `502`             | `UPSTREAM_UNAVAILABLE`    | Quotes are unavailable right now. Try again shortly.   |
-| Vendor response unparseable       | `502`             | `UPSTREAM_CONTRACT`       | Quotes are unavailable right now. Try again shortly.   |
-| Vendor rejected our request `400` | `502`             | `UPSTREAM_CONTRACT`       | Quotes are unavailable right now. Try again shortly.   |
-| Timeout or total budget exceeded  | `504`             | `UPSTREAM_TIMEOUT`        | The quote service took too long. Try again.            |
-| Circuit breaker open              | `503` + `Retry-After` | `UPSTREAM_CIRCUIT_OPEN` | Quotes are paused briefly. Try again in a moment.      |
-| Panic or unexpected failure       | `500`             | `INTERNAL`                | Something went wrong. Try again.                       |
+| Failure class                     | Middleware        | Code                      | Middleware message                                       |
+|-----------------------------------|-------------------|---------------------------|----------------------------------------------------------|
+| Validation failed                 | `400`             | `VALIDATION_FAILED`       | request failed validation                                 |
+| Malformed body                    | `400`             | `VALIDATION_FAILED`       | request body could not be parsed                          |
+| Missing or invalid bearer         | `401`             | `UNAUTHENTICATED`         | bearer token missing, invalid or expired                  |
+| Valid caller, not entitled        | `403`             | `FORBIDDEN`               | caller is not entitled to the required scope              |
+| Vendor rejected our `api-key`     | `502`             | `UPSTREAM_UNAVAILABLE`    | upstream quote provider unavailable                       |
+| Vendor 5xx, retries exhausted     | `502`             | `UPSTREAM_UNAVAILABLE`    | upstream quote provider unavailable                       |
+| Vendor response unparseable       | `502`             | `UPSTREAM_CONTRACT`       | upstream quote provider returned an unexpected response   |
+| Vendor rejected our request `400` | `502`             | `UPSTREAM_CONTRACT`       | upstream quote provider returned an unexpected response   |
+| Timeout or total budget exceeded  | `504`             | `UPSTREAM_TIMEOUT`        | upstream quote provider timed out                         |
+| Circuit breaker open              | `503` + `Retry-After` | `UPSTREAM_CIRCUIT_OPEN` | upstream calls suspended by circuit breaker             |
+| Panic or unexpected failure       | `500`             | `INTERNAL`                | internal error                                            |
+
+### Who writes the message
+
+The Middleware states the condition in API terms: what happened, not what a
+person should do about it. It is an internal service with no browser, and a
+message such as "sign in again" is a remedy expressed in terms of a UI that may
+not exist. A batch job calling this service should not be told to sign in.
+
+The **BFF owns user facing wording**, mapping `code` to whatever the front end
+should say. This is the same principle already applied to field errors, where
+`amount_out_of_range` is the contract and the wording is the front end's: the
+code is stable, the prose is presentation. Applying it to the top level message
+too removes an inconsistency, and means tone, phrasing and any future
+localisation change in one place next to the UI rather than in a service two hops
+away.
+
+| Code | Wording the BFF returns to the browser |
+|---|---|
+| `VALIDATION_FAILED` | Check the highlighted fields. |
+| `UNAUTHENTICATED` | Your session has expired. Sign in again. |
+| `FORBIDDEN` | You do not have access to generate quotes. |
+| `UPSTREAM_UNAVAILABLE` | Quotes are unavailable right now. Try again shortly. |
+| `UPSTREAM_CONTRACT` | Quotes are unavailable right now. Try again shortly. |
+| `UPSTREAM_TIMEOUT` | The quote service took too long. Try again. |
+| `UPSTREAM_CIRCUIT_OPEN` | Quotes are paused briefly. Try again in a moment. |
+| `INTERNAL` | Something went wrong. Try again. |
+
+An unrecognised code maps to the `INTERNAL` wording, so a new Middleware code
+never reaches a user as raw API text.
+
+A Middleware message must still be safe to return: no credentials, no hostnames,
+no internal state. That is why the two `502` cases read alike from outside and
+are separated only by their code and by what is logged.
 
 The vendor `api-key` failure maps to `502`, never `401`. A vendor credential problem is our
 operational fault, not the staff user's authentication problem, and conflating them would both
@@ -196,8 +230,9 @@ logged at error level because it means the contract needs attention.
 it would have invented an envelope outside this table. Any error that is not one of the classes above
 is rendered as `INTERNAL`, so an unexpected error can never leak its text to a caller.
 
-BFF behaviour: pass the Middleware status and body through unchanged, except `401`, which it maps to
-its own session semantics and which triggers a sign in redirect in the FE.
+BFF behaviour: keep the Middleware's status, `code`, `details` and `correlationId`, and replace
+`message` with the wording above. `401` additionally maps to its own session semantics and triggers
+a sign in redirect in the FE.
 
 ## 6. Resilience budgets
 
@@ -406,7 +441,7 @@ The brief specifies parts of the UI literally, so they are pinned here rather th
 | Submit control | A button labelled **Generate Quote** |
 | Success | A display area showing `quoteId`, `commissionRate` and `totalCommission` |
 | In flight | A visible loading state; the submit control is disabled while a request is open |
-| Failure | The `message` from the error envelope, shown as an error, with `correlationId` available |
+| Failure | The `message` from the BFF's error envelope, shown as an error, with `correlationId` available |
 | Field errors | `details` mapped back to the field that failed, shown inline |
 
 Presentation: `commissionRate` is shown as a percentage to two decimal places (`0.0180` renders as
