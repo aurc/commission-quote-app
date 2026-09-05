@@ -7,7 +7,7 @@ Statuses: `todo`, `in progress`, `done`.
 | Code  | Title                       | Status | Deliverable                                            |
 |-------|-----------------------------|--------|--------------------------------------------------------|
 | CQ-01 | Design completeness pass    | done   | `design/contract.md`, repaired `design/assumptions.md` |
-| CQ-02 | Scaffold and platform       | todo   | `go.mod`, `Makefile`, `internal/platform`              |
+| CQ-02 | Scaffold and platform       | wip    | `go.mod`, `Makefile`, `internal/platform`              |
 | CQ-03 | Mocked vendor CQAPI         | todo   | `cmd/cqapi`                                            |
 | CQ-04 | Middleware core and OpenAPI | todo   | `cmd/middleware`, `api/openapi.yaml`                   |
 | CQ-05 | Middleware resilience       | todo   | timeouts, retries, circuit breaker                     |
