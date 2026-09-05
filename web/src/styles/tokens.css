@@ -1,0 +1,35 @@
+/* Design tokens. Values and their measured contrast ratios are in
+   design/contract.md section 10. Change them here and nowhere else. */
+:root {
+  --cq-primary: #870e40;
+  --cq-primary-dark: #58003a;
+  --cq-focus: #de313b;
+  --cq-danger: #b20838;
+
+  --cq-text: #212529;
+  --cq-text-muted: #68696b;
+  --cq-on-primary: #ffffff;
+
+  --cq-surface: #ffffff;
+  --cq-surface-tint: #f6f2f5;
+  --cq-border: #dee2e6;
+
+  --cq-font: 'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif;
+  --cq-font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  --cq-radius: 6px;
+  --cq-radius-card: 8px;
+  --cq-control-height: 44px;
+  --cq-gap: 18px;
+  --cq-card-pad: 28px;
+  --cq-page-pad: 40px 32px 48px;
+  --cq-bar-pad: 0 32px;
+}
+
+@media (max-width: 560px) {
+  :root {
+    --cq-card-pad: 20px;
+    --cq-page-pad: 20px 16px 32px;
+    --cq-bar-pad: 0 16px;
+  }
+}

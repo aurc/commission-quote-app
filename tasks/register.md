@@ -12,6 +12,7 @@ Statuses: `todo`, `in progress`, `done`.
 | CQ-04 | Middleware core and OpenAPI | done   | `cmd/cqapp-middleware`, `api/middleware.openapi.yaml`        |
 | CQ-05 | Middleware resilience       | done   | timeouts, retries, circuit breaker                     |
 | CQ-06 | BFF and AuthProvider        | done   | `cmd/cqapp-bff`                                              |
+| CQ-07.1 | Design handoff            | done   | Canvas published, `design/canvas/`                     |
 | CQ-07 | Web front end               | todo   | `web/`                                                 |
 | CQ-08 | Edge, compose, README       | todo   | `deploy/`, run instructions, AI transparency           |
 
@@ -52,10 +53,16 @@ entitlement, so sign in and authorisation cannot disagree about who exists. Sess
 bearer exchange, proxy to Middleware. Owns user facing error wording, mapping the Middleware's `code`
 to what the browser shows, per `contract.md` section 5. No business logic, no vendor credential.
 
+### CQ-07.1 Design handoff
+
+Design canvas with one artboard per state, reviewed before CQ-07 writes any component. Palette only,
+no Bendigo mark: see *Branding* in `design/assumptions.md`.
+
 ### CQ-07 Web front end
 
-React and Vite. Loan form with inline validation mirroring `contract.md`, distinct loading, error
-and result states. Accessible and responsive.
+React, TypeScript and Vite, implemented against the CQ-07.1 canvas. Loan form with inline validation
+mirroring `contract.md` section 4, distinct loading, error and result states. Accessible and
+responsive.
 
 ### CQ-08 Edge, compose, README
 

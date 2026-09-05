@@ -149,6 +149,33 @@ here and deliberately not built.
 Honest note on the timebox: the breaker and tracing are the two items most likely to be cut. They
 are specified so the intent is legible even if the code is not there.
 
+### Branding
+
+The interface borrows Bendigo Bank's colour palette, taken from the published stylesheet on
+bendigobank.com.au, and uses no Bendigo mark of any kind. The values and their measured contrast
+ratios are in [contract.md](contract.md) section 10.
+
+**No Bendigo logo, wordmark or icon is stored in this repository.** The reasoning, which is a
+commercial judgement rather than legal advice:
+
+1. **It is a registered trade mark.** A logo identifies the trader, and copying the file into a
+   repository is not necessary to build or demonstrate this application. Nothing here needs it.
+2. **It is a copyright work in its own right.** Committing the asset reproduces and redistributes it,
+   which is a separate act from referring to the company by name.
+3. **This repository is public.** Whatever is committed is copied by anyone who clones or forks it,
+   and continues to exist in history after any later deletion.
+4. **A branded interface can imply endorsement.** An application carrying a bank's mark reads as
+   published by that bank if it is ever seen outside the context of this exercise. Nothing here is
+   endorsed by or affiliated with Bendigo Bank.
+
+Using the palette does not raise the same questions. Colours are not registered as a mark here, are
+not reproduced as an asset, and the result is plainly the Commission Quote App rather than a Bendigo
+page: our own wordmark, our own layout, no mark, no tagline, no imagery.
+
+The point of using the palette at all is to show the application is designed to sit inside an
+existing design language rather than beside it. If the palette is unwelcome, it is one token file to
+change, which is the reason the values live in tokens and not scattered through components.
+
 ### Testing
 
 Not mentioned above but graded by the challenge, so stated here: table driven Go unit tests with

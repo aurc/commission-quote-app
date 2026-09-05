@@ -1,0 +1,141 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+  <style>
+    body { margin: 0; background: #ffffff; color: #212529;
+           font-family: 'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif; }
+    a { color: #870e40; } a:hover { color: #58003a; }
+    * { box-sizing: border-box; }
+  </style>
+</helmet>
+
+<div style="padding: 40px 48px; display: flex; flex-direction: column; gap: 32px;">
+
+  <div style="display: flex; flex-direction: column; gap: 6px;">
+    <div style="font-size: 13px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: #68696b;">Commission Quote App</div>
+    <h1 style="margin: 0; font-size: 28px; font-weight: 600; line-height: 1.2;">Design tokens</h1>
+    <p style="margin: 0; font-size: 15px; line-height: 1.5; color: #68696b; max-width: 62ch;">
+      Contrast measured against WCAG 2.1 on white. Two values depart from the source palette; both are marked.
+    </p>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px;">
+
+    <div style="display: flex; flex-direction: column; gap: 8px;">
+      <div style="height: 88px; border-radius: 6px; background: #870e40;"></div>
+      <div style="font: 500 14px 'IBM Plex Sans', sans-serif;">Primary</div>
+      <div style="font: 400 13px 'IBM Plex Mono', monospace; color: #68696b;">#870e40</div>
+      <div style="font-size: 13px; color: #212529;">9.69:1 &middot; AAA</div>
+      <div style="font-size: 13px; line-height: 1.45; color: #68696b;">Actions, headings</div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 8px;">
+      <div style="height: 88px; border-radius: 6px; background: #58003a;"></div>
+      <div style="font: 500 14px 'IBM Plex Sans', sans-serif;">Primary dark</div>
+      <div style="font: 400 13px 'IBM Plex Mono', monospace; color: #68696b;">#58003a</div>
+      <div style="font-size: 13px; color: #212529;">14.23:1 &middot; AAA</div>
+      <div style="font-size: 13px; line-height: 1.45; color: #68696b;">Hover, pressed, icon fills</div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 8px;">
+      <div style="height: 88px; border-radius: 6px; background: #ffffff; border: 1px solid #dee2e6; display: flex; align-items: center; justify-content: center;">
+        <div style="width: 96px; height: 40px; border-radius: 6px; background: #ffffff; border: 1px solid #dee2e6; box-shadow: 0 0 0 3px rgba(222, 49, 59, 0.45);"></div>
+      </div>
+      <div style="font: 500 14px 'IBM Plex Sans', sans-serif;">Focus ring</div>
+      <div style="font: 400 13px 'IBM Plex Mono', monospace; color: #68696b;">#de313b</div>
+      <div style="font-size: 13px; color: #212529;">4.56:1 &middot; AA</div>
+      <div style="font-size: 13px; line-height: 1.45; color: #b20838;">Focus only, never error</div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 8px;">
+      <div style="height: 88px; border-radius: 6px; background: #b20838;"></div>
+      <div style="font: 500 14px 'IBM Plex Sans', sans-serif;">Danger</div>
+      <div style="font: 400 13px 'IBM Plex Mono', monospace; color: #68696b;">#b20838</div>
+      <div style="font-size: 13px; color: #212529;">7.04:1 &middot; AAA</div>
+      <div style="font-size: 13px; line-height: 1.45; color: #b20838;">Replaces the action red</div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 8px;">
+      <div style="height: 88px; border-radius: 6px; background: #212529;"></div>
+      <div style="font: 500 14px 'IBM Plex Sans', sans-serif;">Text</div>
+      <div style="font: 400 13px 'IBM Plex Mono', monospace; color: #68696b;">#212529</div>
+      <div style="font-size: 13px; color: #212529;">15.43:1 &middot; AAA</div>
+      <div style="font-size: 13px; line-height: 1.45; color: #68696b;">Body</div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 8px;">
+      <div style="height: 88px; border-radius: 6px; background: #68696b;"></div>
+      <div style="font: 500 14px 'IBM Plex Sans', sans-serif;">Text muted</div>
+      <div style="font: 400 13px 'IBM Plex Mono', monospace; color: #68696b;">#68696b</div>
+      <div style="font-size: 13px; color: #212529;">5.50:1 &middot; AA</div>
+      <div style="font-size: 13px; line-height: 1.45; color: #b20838;">Darkened from #808184</div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 8px;">
+      <div style="height: 88px; border-radius: 6px; background: #f6f2f5; border: 1px solid #dee2e6;"></div>
+      <div style="font: 500 14px 'IBM Plex Sans', sans-serif;">Surface tint</div>
+      <div style="font: 400 13px 'IBM Plex Mono', monospace; color: #68696b;">#f6f2f5</div>
+      <div style="font-size: 13px; color: #68696b;">&mdash;</div>
+      <div style="font-size: 13px; line-height: 1.45; color: #68696b;">Page, result panel</div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 8px;">
+      <div style="height: 88px; border-radius: 6px; background: #ffffff; border: 1px solid #dee2e6;"></div>
+      <div style="font: 500 14px 'IBM Plex Sans', sans-serif;">Border</div>
+      <div style="font: 400 13px 'IBM Plex Mono', monospace; color: #68696b;">#dee2e6</div>
+      <div style="font-size: 13px; color: #68696b;">&mdash;</div>
+      <div style="font-size: 13px; line-height: 1.45; color: #68696b;">Fields, dividers</div>
+    </div>
+
+  </div>
+
+  <div style="height: 1px; background: #dee2e6;"></div>
+
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 40px;">
+
+    <div style="display: flex; flex-direction: column; gap: 14px;">
+      <div style="font-size: 13px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: #68696b;">Type</div>
+      <div style="font-size: 28px; font-weight: 600; line-height: 1.2;">Heading 28 / 600</div>
+      <div style="font-size: 20px; font-weight: 600; line-height: 1.3;">Subheading 20 / 600</div>
+      <div style="font-size: 16px; line-height: 1.5;">Body 16 / 400, the size every field label and message uses.</div>
+      <div style="font-size: 14px; font-weight: 500;">Label 14 / 500</div>
+      <div style="font-size: 13px; color: #68696b;">Hint 13 / 400 muted</div>
+      <div style="font: 400 14px 'IBM Plex Mono', monospace;">Mono 14 &mdash; identifiers only</div>
+      <div style="font-size: 13px; line-height: 1.5; color: #68696b; max-width: 46ch;">
+        IBM Plex Sans for the interface, IBM Plex Mono for quote and correlation identifiers: they are read aloud to support, so the characters have to be unambiguous.
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 14px;">
+      <div style="font-size: 13px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: #68696b;">Controls</div>
+      <div style="display: flex; gap: 12px; align-items: center;">
+        <button style="height: 48px; padding: 0 24px; border: none; border-radius: 6px; background: #870e40; color: #ffffff; font: 600 16px 'IBM Plex Sans', sans-serif;">Generate Quote</button>
+        <button style="height: 48px; padding: 0 24px; border: 1px solid #dee2e6; border-radius: 6px; background: #ffffff; color: #212529; font: 500 16px 'IBM Plex Sans', sans-serif;">Secondary</button>
+      </div>
+      <div style="display: flex; gap: 12px; align-items: center;">
+        <button style="height: 48px; padding: 0 24px; border: none; border-radius: 6px; background: #58003a; color: #ffffff; font: 600 16px 'IBM Plex Sans', sans-serif;">Hover</button>
+        <button style="height: 48px; padding: 0 24px; border: none; border-radius: 6px; background: #870e40; opacity: 0.55; color: #ffffff; font: 600 16px 'IBM Plex Sans', sans-serif;">Submitting</button>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 8px; max-width: 320px;">
+        <input value="Field at rest" style="height: 44px; padding: 0 12px; border: 1px solid #dee2e6; border-radius: 6px; background: #ffffff; color: #212529; font: 400 16px 'IBM Plex Sans', sans-serif;">
+        <input value="Field focused" style="height: 44px; padding: 0 12px; border: 1px solid #dee2e6; border-radius: 6px; background: #ffffff; color: #212529; font: 400 16px 'IBM Plex Sans', sans-serif; box-shadow: 0 0 0 3px rgba(222, 49, 59, 0.45);">
+        <input value="Field invalid" style="height: 44px; padding: 0 12px; border: 2px solid #b20838; border-radius: 6px; background: #ffffff; color: #212529; font: 400 16px 'IBM Plex Sans', sans-serif;">
+      </div>
+      <div style="font-size: 13px; line-height: 1.5; color: #68696b; max-width: 46ch;">
+        Controls are 44px or taller. An invalid field carries an icon and a message as well as the border, because the brand's action colour is red and colour alone cannot separate act here from this is wrong.
+      </div>
+    </div>
+
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

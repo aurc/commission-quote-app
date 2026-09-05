@@ -1,0 +1,194 @@
+{
+  "artboards": [
+    {
+      "file": "Tokens.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 1080,
+      "h": 780,
+      "title": "Design tokens"
+    },
+    {
+      "file": "SignIn.dc.html",
+      "x": 0,
+      "y": 900,
+      "w": 760,
+      "h": 560,
+      "title": "Sign in"
+    },
+    {
+      "file": "SignInRefused.dc.html",
+      "x": 840,
+      "y": 900,
+      "w": 760,
+      "h": 620,
+      "title": "Sign in refused"
+    },
+    {
+      "file": "QuoteForm.dc.html",
+      "x": 0,
+      "y": 1640,
+      "w": 880,
+      "h": 700,
+      "title": "Quote form, idle"
+    },
+    {
+      "file": "QuoteInvalid.dc.html",
+      "x": 960,
+      "y": 1640,
+      "w": 880,
+      "h": 940,
+      "title": "Quote form, invalid"
+    },
+    {
+      "file": "QuoteSubmitting.dc.html",
+      "x": 1920,
+      "y": 1640,
+      "w": 880,
+      "h": 740,
+      "title": "Quote form, submitting"
+    },
+    {
+      "file": "Main.dc.html",
+      "x": 0,
+      "y": 2700,
+      "w": 880,
+      "h": 620,
+      "title": "Quote result"
+    },
+    {
+      "file": "NotEntitled.dc.html",
+      "x": 960,
+      "y": 2700,
+      "w": 880,
+      "h": 480,
+      "title": "Not entitled"
+    },
+    {
+      "file": "Unavailable.dc.html",
+      "x": 1920,
+      "y": 2700,
+      "w": 880,
+      "h": 820,
+      "title": "Service unavailable"
+    },
+    {
+      "file": "PhoneSignIn.dc.html",
+      "x": 0,
+      "y": 3860,
+      "w": 390,
+      "h": 844,
+      "title": "Phone, sign in"
+    },
+    {
+      "file": "PhoneSignInRefused.dc.html",
+      "x": 470,
+      "y": 3860,
+      "w": 390,
+      "h": 844,
+      "title": "Phone, sign in refused"
+    },
+    {
+      "file": "PhoneQuoteForm.dc.html",
+      "x": 940,
+      "y": 3860,
+      "w": 390,
+      "h": 844,
+      "title": "Phone, quote form"
+    },
+    {
+      "file": "PhoneQuoteInvalid.dc.html",
+      "x": 1410,
+      "y": 3860,
+      "w": 390,
+      "h": 1000,
+      "title": "Phone, invalid"
+    },
+    {
+      "file": "PhoneQuoteSubmitting.dc.html",
+      "x": 0,
+      "y": 4940,
+      "w": 390,
+      "h": 844,
+      "title": "Phone, submitting"
+    },
+    {
+      "file": "PhoneResult.dc.html",
+      "x": 470,
+      "y": 4940,
+      "w": 390,
+      "h": 844,
+      "title": "Phone, result"
+    },
+    {
+      "file": "PhoneNotEntitled.dc.html",
+      "x": 940,
+      "y": 4940,
+      "w": 390,
+      "h": 844,
+      "title": "Phone, not entitled"
+    },
+    {
+      "file": "PhoneUnavailable.dc.html",
+      "x": 1410,
+      "y": 4940,
+      "w": 390,
+      "h": 1000,
+      "title": "Phone, unavailable"
+    }
+  ],
+  "annotations": [
+    {
+      "id": "palette-source",
+      "x": 1200,
+      "y": 0,
+      "w": 320,
+      "text": "Palette measured from the stylesheet published at bendigobank.com.au, by counting which CSS properties each value serves.\n\nTwo deliberate departures, both for accessibility:\n\nTheir muted grey #808184 is 3.90:1 on white, under the 4.5:1 AA floor for body text. Darkened to #68696b at 5.50:1.\n\n#de313b is the focus ring, not the error colour. It is the brand's action red, and one red for both the button you press and the message saying you got it wrong is a poor signal."
+    },
+    {
+      "id": "no-mark",
+      "x": 1200,
+      "y": 420,
+      "w": 320,
+      "text": "No Bendigo mark, name or tagline anywhere. Palette only, with our own wordmark.\n\nThe reasoning is in Branding in design/assumptions.md: it is a registered trade mark and a copyright work, this repository is public, and a branded interface implies an endorsement that does not exist."
+    },
+    {
+      "id": "colour-not-alone",
+      "x": 2880,
+      "y": 1640,
+      "w": 320,
+      "text": "Colour is never the only signal.\n\nAn invalid field carries an icon, a message and a heavier border, and the summary at the top of the card lists every failure at once with a link to each field.\n\nThe Middleware returns all failures together, so the form shows them together. It never reveals one at a time."
+    },
+    {
+      "id": "two-error-tones",
+      "x": 2880,
+      "y": 2700,
+      "w": 320,
+      "text": "Two tones for two kinds of failure.\n\nDanger red #b20838 when the user can fix it: a wrong password, an out of range amount.\n\nPrimary maroon when they cannot: no entitlement, or the vendor being down. Shouting in red at someone about a problem they did not cause and cannot solve is the wrong tone.\n\nEvery failure shows the correlation id. It is the only thing a user can quote that lets an operator find their request."
+    },
+    {
+      "id": "phone-layout",
+      "x": 1880,
+      "y": 3860,
+      "w": 320,
+      "text": "Every screen state has a phone counterpart, 390 wide. The failure states are where narrow layouts break, so they are drawn rather than assumed.\n\nThree things change and nothing else does: the result panel stacks to one column, padding tightens, and the top bar drops the staff name because it has room for the wordmark and one control, and Sign out is the one you cannot reach any other way. The name moves into the form instead.\n\nCQ-07 implements this as one responsive stylesheet, not two layouts. These artboards are the narrow end of the same design, generated from the same source by build.py, so the two cannot drift apart in wording.\n\nFrames are a real 390x844 viewport, so a frame shows what fits without scrolling."
+    },
+    {
+      "id": "collapse-in-place",
+      "x": 1880,
+      "y": 4940,
+      "w": 320,
+      "text": "The form collapses in place once submitted.\n\nIt keeps its position and shrinks from about 560px to about 165px, which is what lifts the result above the fold on a phone.\n\nMoving the form below the result would free the same space, but the panel would jump position between states and the page would read as rearranging itself under the user. Order stays fixed; only height changes.\n\nIt collapses to the values it was sent with. Those are not decoration: a quote cannot be checked without its inputs, and after an edit there would be no way to tell which numbers produced the figure on screen. Edit reopens the form.\n\nSame behaviour at both breakpoints. The phone artboard is 390x844, a real viewport, so the frame shows whether the answer fits without scrolling."
+    },
+    {
+      "id": "one-action",
+      "x": 1880,
+      "y": 5500,
+      "w": 320,
+      "text": "One primary action per screen.\n\nA refused sign in, failed validation and an unreachable vendor are all banners inside the form card, above the fields. The card keeps exactly one button.\n\nThe service error carries no Try again of its own: Generate Quote already is the retry, and two controls doing the same thing leave a user guessing which one to press.\n\nNot entitled is the exception and shows no form at all, because there is nothing a retry would achieve."
+    }
+  ],
+  "launch": {
+    "view": "canvas"
+  }
+}

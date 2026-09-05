@@ -548,11 +548,65 @@ The brief specifies parts of the UI literally, so they are pinned here rather th
 | Success | A display area showing `quoteId`, `commissionRate` and `totalCommission` |
 | In flight | A visible loading state; the submit control is disabled while a request is open |
 | Failure | The `message` from the BFF's error envelope, shown as an error, with `correlationId` available |
+| On success | The form collapses in place to the values it was submitted with; the result appears below it |
 | Field errors | `details` mapped back to the field that failed, shown inline |
+| One action | Exactly one primary control per screen, besides the persistent sign out |
 
 Presentation: `commissionRate` is shown as a percentage to two decimal places (`0.0180` renders as
 `1.80%`), `totalCommission` as AUD currency. The FE formats for display only; it never recomputes a
 figure the vendor produced.
+
+### Design tokens
+
+Taken from the stylesheet published at bendigobank.com.au, by counting which CSS properties each
+value actually serves rather than assuming from frequency. Contrast is measured against WCAG 2.1, not
+estimated. No Bendigo mark is stored; see *Branding* in `assumptions.md`.
+
+| Token | Value | Contrast on white | Role |
+|---|---|---|---|
+| `--cq-primary` | `#870e40` | 9.69:1, AAA | Primary actions, headings, the brand note |
+| `--cq-primary-dark` | `#58003a` | 14.23:1, AAA | Hover and pressed, icon fills |
+| `--cq-primary-darkest` | `#330019` | | Deep surfaces |
+| `--cq-focus` | `#de313b` | 4.56:1, AA | Focus ring only, see below |
+| `--cq-danger` | `#b20838` | 7.04:1, AAA | Validation and error text |
+| `--cq-text` | `#212529` | 15.43:1, AAA | Body |
+| `--cq-text-muted` | `#68696b` | 5.50:1, AA | Secondary text |
+| `--cq-surface` | `#ffffff` | | Page |
+| `--cq-surface-tint` | `#f6f2f5` | | Cards, the result panel |
+| `--cq-border` | `#dee2e6` | | Field borders |
+| `--cq-border-strong` | `#c5c5c5` | | Dividers |
+
+Two deliberate departures from the source palette, both for accessibility:
+
+**Their muted grey `#808184` is not used.** It measures 3.90:1 on white, below the 4.5:1 AA threshold
+for body text. `--cq-text-muted` is darkened to `#68696b`, which is the same hue at 5.50:1.
+
+**`#de313b` is a focus ring, not the error colour.** It is the brand's action red, and using the same
+red for the button a user is asked to press and for the message telling them they got it wrong is a
+poor signal. `--cq-danger` is the deeper `#b20838`, which also measures better, 7.04:1 against 4.56:1.
+
+**Colour is never the only signal.** An invalid field carries an icon, a message and `aria-invalid`,
+not just a red border. A red forward brand makes this more important, not less, because the palette
+offers less contrast between "act here" and "this is wrong" than a blue one would.
+
+**Failures are banners inside the form card, above the fields.** A refused sign in, failed validation
+and an unreachable vendor all take the same shape, and the card keeps exactly one button.
+
+The service failure carries no retry control of its own. `Generate Quote` already is the retry, and
+two controls doing the same thing leave a user deciding which one to press. `403 FORBIDDEN` is the
+exception and shows no form at all, because there is nothing for a retry to achieve.
+
+**The form collapses in place once submitted.** A full form above the result pushes the answer off a
+phone screen, and the form's work is done at submit, so it shrinks from around 560px to around 165px
+and the result sits above the fold.
+
+It collapses where it is. Moving it below the result would free the same space, but the panel would
+change position between states and the page would read as rearranging itself under the user. Order
+stays fixed; only height changes.
+
+It collapses to the values it was sent with, which the result needs regardless: a quote cannot be
+checked without its inputs, and after an edit there would be no way to tell which numbers produced
+the figure on screen. Edit reopens it. One behaviour at both breakpoints, not a mobile special case.
 
 Validation in the FE mirrors section 4 for immediate feedback and is never trusted. The Middleware
 rejects independently, and the FE renders whatever it sends back.

@@ -3,22 +3,40 @@
 Full-stack take-home: a web app that captures loan details and returns a commission quote from a
 mocked external vendor API.
 
-> Status: implementation in progress. Two of the four services exist. The single `docker compose up`
-> path lands with CQ-08; native development works today.
+<p align="center">
+  <img src="design/screenshots/desktop-form.png" alt="The quote form: loan amount, term in months and risk band, with a Generate Quote button" width="420">
+  <img src="design/screenshots/desktop-result.png" alt="The result: a 1.80% commission rate and a total of $4,500.00, with the form collapsed above to the values it was submitted with" width="420">
+</p>
 
-| Built | Not yet |
-|---|---|
-| Vendor mock, Middleware, resilience, BFF | Web front end (CQ-07), Edge and compose (CQ-08) |
+<p align="center">
+  <img src="design/screenshots/phone-signin.png" alt="Sign in on a phone" width="200">
+  <img src="design/screenshots/phone-form.png" alt="The quote form on a phone" width="200">
+  <img src="design/screenshots/phone-validation.png" alt="Validation on a phone: every failed field marked at once, with a summary linking to each" width="200">
+  <img src="design/screenshots/phone-result.png" alt="The result on a phone, entirely above the fold" width="200">
+</p>
+
+> Screenshots of the running application, taken end to end through the real stack: a real session, a
+> real quote from the mocked vendor, real quote identifiers. Every state is drawn in the
+> [design canvas](tasks/CQ-07.1/plan.md) first, seventeen artboards on desk and phone, with the
+> [tokens](design/screenshots/design-tokens.png) and their measured contrast ratios.
+
+> Status: the API and the front end work end to end. The single `docker compose up` path lands with
+> CQ-08; native development works today.
+
+| Built                                                    | Not yet                                         |
+|----------------------------------------------------------|-------------------------------------------------|
+| Vendor mock, Middleware, resilience, BFF, design handoff | Web front end (CQ-07), Edge and compose (CQ-08) |
 
 ## Documents
 
-| Document | Holds |
-|---|---|
-| [assumptions.md](design/assumptions.md) | Assumptions, design decisions, scope, delivery tiers |
-| [contract.md](design/contract.md) | Schemas, validation rules, commission formula, error taxonomy, resilience budgets, auth, config |
-| [register.md](tasks/register.md) | Task register, one PR per task |
-| [cqapi.openapi.yaml](api/cqapi.openapi.yaml) | The vendor's published contract |
-| [middleware.openapi.yaml](api/middleware.openapi.yaml) | Our published contract |
+| Document                                               | Holds                                                                                           |
+|--------------------------------------------------------|-------------------------------------------------------------------------------------------------|
+| [assumptions.md](design/assumptions.md)                | Assumptions, design decisions, scope, delivery tiers                                            |
+| [contract.md](design/contract.md)                      | Schemas, validation rules, commission formula, error taxonomy, resilience budgets, auth, config |
+| [register.md](tasks/register.md)                       | Task register, one PR per task                                                                  |
+| [cqapi.openapi.yaml](api/cqapi.openapi.yaml)           | The vendor's published contract                                                                 |
+| [middleware.openapi.yaml](api/middleware.openapi.yaml) | Our published contract                                                                          |
+| [design/canvas/](design/canvas/)                       | Design canvas sources, one artboard per state                                                   |
 
 `assumptions.md` is the *why*. `contract.md` is the *what*, and is what the code is tested against.
 
@@ -27,13 +45,13 @@ mocked external vendor API.
 Five components behind a single browser visible origin. The front end never reaches the Middleware,
 and the vendor `api-key` never leaves the Middleware.
 
-| Component | Stack | Port | Owns |
-|---|---|---|---|
-| Edge | nginx | 8080 | Single origin, serves FE assets with SPA fallback, routes `/api` |
-| Web Front End | React, Vite | via Edge | Form, inline validation, loading, error and result states |
-| BFF | Go | 8081 | Staff session cookie, cookie to bearer exchange, user facing error wording |
-| Middleware | Go | 8082 | Claim verification, entitlement, authoritative validation, resilience, holds the `api-key` |
-| cqapi-mock | Go | 8083 | Stand in for the vendor: contract, `api-key` enforcement, failure and latency injection |
+| Component     | Stack       | Port     | Owns                                                                                       |
+|---------------|-------------|----------|--------------------------------------------------------------------------------------------|
+| Edge          | nginx       | 8080     | Single origin, serves FE assets with SPA fallback, routes `/api`                           |
+| Web Front End | React, Vite | via Edge | Form, inline validation, loading, error and result states                                  |
+| BFF           | Go          | 8081     | Staff session cookie, cookie to bearer exchange, user facing error wording                 |
+| Middleware    | Go          | 8082     | Claim verification, entitlement, authoritative validation, resilience, holds the `api-key` |
+| cqapi-mock    | Go          | 8083     | Stand in for the vendor: contract, `api-key` enforcement, failure and latency injection    |
 
 <img src="design/design.svg">
 
@@ -52,7 +70,7 @@ internal/
   cqappbff/         -> cmd/cqapp-bff
   cqappmiddleware/  -> cmd/cqapp-middleware
   cqapimock/        -> cmd/cqapi-mock
-web/          React SPA                                    (CQ-07)
+web/          React SPA: components, one stylesheet, tokens
 deploy/       nginx, Dockerfiles, docker compose            (CQ-08)
 config/       staff.csv and credentials.csv, the identity fixtures
 design/       assumptions, contract, diagram
@@ -84,7 +102,8 @@ A full account of how AI was used lands with CQ-08.
 
 ## Getting started
 
-Requires Go 1.26. No other tooling; `golangci-lint` is used if installed and skipped if not.
+Requires Go 1.26 and Node 22 or newer. Nothing else; `golangci-lint` is used if installed and
+skipped if not.
 
 ```sh
 make env     # writes .env from .env.example, development values only
@@ -95,18 +114,22 @@ comes from the secret manager through the same `SecretProvider` interface.
 
 ### Running
 
-Two terminals, or background them:
+Four terminals, or background them:
 
 ```sh
 make run-cqapi-mock          # vendor stand in, port 8083
 make run-cqapp-middleware    # middleware,      port 8082
 make run-cqapp-bff           # bff,             port 8081
+make run-cqapp-web           # front end,       port 5173
 ```
 
-### Making a request
+Then open http://localhost:5173 and sign in as `staff-001` with `demo-password`. The Vite dev server
+proxies `/api` to the BFF, standing in for the Edge until CQ-08.
 
-Sign in, then ask for a quote. The development password for every fixture row is `demo-password`,
-stated in [config/credentials.csv](config/credentials.csv).
+### Or drive the API directly
+
+The development password for every fixture row is `demo-password`, stated in
+[config/credentials.csv](config/credentials.csv).
 
 ```sh
 curl -s -c jar localhost:8081/api/session \
@@ -117,7 +140,11 @@ curl -s -b jar localhost:8081/api/v1/quotes \
 ```
 
 ```json
-{"quoteId":"7c4677e6-...","commissionRate":0.0180,"totalCommission":4500.00}
+{
+  "quoteId": "7c4677e6-...",
+  "commissionRate": 0.0180,
+  "totalCommission": 4500.00
+}
 ```
 
 Staff are listed in [config/staff.csv](config/staff.csv), which stands in for the identity provider,
@@ -152,10 +179,11 @@ in `.env` to stop it entirely.
 ## Testing
 
 ```sh
-make test     # go test -race ./...
-make cover    # coverage per package
-make lint     # go vet, then golangci-lint if installed
-make check    # fmt, vet and test. Run this before opening a PR
+make test      # go test -race ./...
+make test-web  # front end tests
+make cover     # coverage per package
+make lint      # go vet, then golangci-lint if installed
+make check     # fmt, vet and both suites. Run this before opening a PR
 ```
 
 Tests use `httptest` fakes and never touch the network, so they do not need either service running.
@@ -171,12 +199,12 @@ make help
 Every target is named after the thing it acts on, so `cmd/cqapp-bff` is `make run-cqapp-bff`.
 Development only tools carry a `dev-` prefix.
 
-| Target | Does |
-|---|---|
-| `env` | Create `.env` from `.env.example` |
-| `run-cqapi-mock`, `run-cqapp-middleware`, `run-cqapp-bff` | Run one service natively |
-| `dev-staff` | Add a staff member, prompting for a password |
-| `dev-token` | Print a bearer token, to call the middleware without the BFF |
-| `build` | Build every service into `bin/` |
-| `test`, `cover`, `vet`, `lint`, `check` | See above |
-| `fmt`, `tidy`, `clean` | Housekeeping |
+| Target                                                    | Does                                                         |
+|-----------------------------------------------------------|--------------------------------------------------------------|
+| `env`                                                     | Create `.env` from `.env.example`                            |
+| `run-cqapi-mock`, `run-cqapp-middleware`, `run-cqapp-bff` | Run one service natively                                     |
+| `dev-staff`                                               | Add a staff member, prompting for a password                 |
+| `dev-token`                                               | Print a bearer token, to call the middleware without the BFF |
+| `build`                                                   | Build every service into `bin/`                              |
+| `test`, `cover`, `vet`, `lint`, `check`                   | See above                                                    |
+| `fmt`, `tidy`, `clean`                                    | Housekeeping                                                 |
