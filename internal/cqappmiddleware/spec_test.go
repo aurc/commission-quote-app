@@ -1,11 +1,11 @@
-package middleware_test
+package cqappmiddleware_test
 
 import (
 	"os"
 	"sort"
 	"testing"
 
-	"github.com/aurc/commission-quote-app/internal/middleware"
+	"github.com/aurc/commission-quote-app/internal/cqappmiddleware"
 	"gopkg.in/yaml.v3"
 )
 
@@ -71,8 +71,8 @@ func TestSpecDeclaresTheScopeThatIsActuallyEnforced(t *testing.T) {
 	if len(declared) != 1 {
 		t.Fatalf("expected exactly one declared scope, got %v", declared)
 	}
-	if declared[0] != middleware.ScopeQuoteGenerate {
-		t.Errorf("spec declares %q, code enforces %q", declared[0], middleware.ScopeQuoteGenerate)
+	if declared[0] != cqappmiddleware.ScopeQuoteGenerate {
+		t.Errorf("spec declares %q, code enforces %q", declared[0], cqappmiddleware.ScopeQuoteGenerate)
 	}
 }
 
@@ -86,21 +86,21 @@ func TestSpecRangesMatchTheValidator(t *testing.T) {
 		t.Fatal("loanAmount must publish its range")
 	}
 	if got, want := *minAmount, 1000.00; got != want {
-		t.Errorf("spec loanAmount minimum %v, validator %s", got, middleware.MinAmount)
+		t.Errorf("spec loanAmount minimum %v, validator %s", got, cqappmiddleware.MinAmount)
 	}
 	if got, want := *maxAmount, 5000000.00; got != want {
-		t.Errorf("spec loanAmount maximum %v, validator %s", got, middleware.MaxAmount)
+		t.Errorf("spec loanAmount maximum %v, validator %s", got, cqappmiddleware.MaxAmount)
 	}
 
 	minTerm, maxTerm := props["loanTermInMonths"].Minimum, props["loanTermInMonths"].Maximum
 	if minTerm == nil || maxTerm == nil {
 		t.Fatal("loanTermInMonths must publish its range")
 	}
-	if int64(*minTerm) != middleware.MinMonths {
-		t.Errorf("spec term minimum %v, validator %d", *minTerm, middleware.MinMonths)
+	if int64(*minTerm) != cqappmiddleware.MinMonths {
+		t.Errorf("spec term minimum %v, validator %d", *minTerm, cqappmiddleware.MinMonths)
 	}
-	if int64(*maxTerm) != middleware.MaxMonths {
-		t.Errorf("spec term maximum %v, validator %d", *maxTerm, middleware.MaxMonths)
+	if int64(*maxTerm) != cqappmiddleware.MaxMonths {
+		t.Errorf("spec term maximum %v, validator %d", *maxTerm, cqappmiddleware.MaxMonths)
 	}
 }
 
@@ -110,7 +110,7 @@ func TestSpecRiskBandsMatchTheValidator(t *testing.T) {
 	documented := s.Components.Schemas["QuoteRequest"].Properties["riskBand"].Enum
 	sort.Strings(documented)
 
-	implemented := append([]string(nil), middleware.ValidBands...)
+	implemented := append([]string(nil), cqappmiddleware.ValidBands...)
 	sort.Strings(implemented)
 
 	if len(documented) != len(implemented) {

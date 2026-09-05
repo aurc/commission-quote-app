@@ -1,8 +1,8 @@
-// Command middleware runs the internal service that orchestrates access to the
-// vendor Commission Quote API.
+// Command cqapp-bff runs the browser facing service.
 //
-// It holds the vendor credential, verifies caller claims, validates
-// authoritatively, and translates the vendor's world into ours.
+// It owns the staff session, exchanges it for a bearer claim the Middleware
+// accepts, and writes the words a person reads. It holds no business logic and
+// no vendor credential.
 package main
 
 import (
@@ -12,25 +12,24 @@ import (
 	"os"
 	"time"
 
-	"github.com/aurc/commission-quote-app/internal/cqappmiddleware"
+	"github.com/aurc/commission-quote-app/internal/cqappbff"
 	"github.com/aurc/commission-quote-app/internal/platform/httpx"
 	"github.com/aurc/commission-quote-app/internal/platform/logging"
 	"github.com/aurc/commission-quote-app/internal/platform/staffdir"
 	"github.com/aurc/commission-quote-app/internal/platform/telemetry"
 )
 
-const component = "cqapp-middleware"
+const component = "cqapp-bff"
 
 func main() {
 	if err := run(context.Background()); err != nil {
-		// Configuration failures happen before the logger exists.
 		fmt.Fprintf(os.Stderr, "%s: %v\n", component, err)
 		os.Exit(1)
 	}
 }
 
 func run(ctx context.Context) error {
-	cfg, err := cqappmiddleware.Load()
+	cfg, err := cqappbff.Load()
 	if err != nil {
 		return err
 	}
@@ -53,25 +52,30 @@ func run(ctx context.Context) error {
 		}
 	}()
 
-	// MVP entitlements, read from the committed fixture. Production swaps this
-	// for directory groups or a policy decision point behind the same
-	// interface; the Middleware does not change.
+	// Identity comes from the same fixture the Middleware reads for entitlement,
+	// so sign in and authorisation cannot disagree about who exists.
 	staff, err := staffdir.Load(cfg.StaffFile)
 	if err != nil {
 		return err
 	}
+	auth, err := cqappbff.NewFixtureAuth(staff, cfg.CredentialsFile)
+	if err != nil {
+		return err
+	}
 
-	log.InfoContext(ctx, "starting middleware",
+	sessions := cqappbff.NewSessionStore(cfg.SessionTTL)
+	quotes := cqappbff.NewMiddlewareClient(cfg.MiddlewareBaseURL, cfg.SigningKey, cfg.TokenTTL, cfg.RequestTimeout, log)
+
+	log.InfoContext(ctx, "starting bff",
+		slog.String("middlewareBaseUrl", cfg.MiddlewareBaseURL),
 		slog.String("staffFile", cfg.StaffFile),
 		slog.Int("staffCount", len(staff.All())),
-		slog.String("vendorBaseUrl", cfg.VendorBaseURL),
-		slog.String("vendorApiKey", cfg.VendorAPIKey.String()),
-		slog.Duration("vendorTimeout", cfg.VendorTimeout),
-		slog.Duration("requestBudget", cfg.RequestBudget),
+		slog.Duration("sessionTtl", cfg.SessionTTL),
+		slog.Bool("cookieSecure", cfg.CookieSecure),
 	)
 
-	return httpx.Serve(ctx, log, cqappmiddleware.NewRouter(cfg, staff, log), httpx.ServeOptions{
+	return httpx.Serve(ctx, log, cqappbff.NewRouter(cfg, auth, sessions, quotes, log), httpx.ServeOptions{
 		Port:         cfg.Port,
-		WriteTimeout: cfg.RequestBudget + 5*time.Second,
+		WriteTimeout: cfg.RequestTimeout + 5*time.Second,
 	})
 }

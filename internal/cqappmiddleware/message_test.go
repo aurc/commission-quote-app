@@ -1,4 +1,4 @@
-package middleware_test
+package cqappmiddleware_test
 
 import (
 	"encoding/json"

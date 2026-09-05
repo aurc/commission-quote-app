@@ -114,6 +114,21 @@ func (l *Loader) Duration(key string, def time.Duration) time.Duration {
 	return d
 }
 
+// Bool returns the boolean at key, or def when unset. Accepts the forms
+// strconv.ParseBool does, so true, false, 1 and 0 all work.
+func (l *Loader) Bool(key string, def bool) bool {
+	v, ok := l.src.Secret(key)
+	if !ok {
+		return def
+	}
+	b, err := strconv.ParseBool(v)
+	if err != nil {
+		l.fail(key, fmt.Errorf("must be true or false, got %q", v))
+		return def
+	}
+	return b
+}
+
 // Port returns a TCP port at key, or def when unset.
 func (l *Loader) Port(key string, def int) int {
 	p := l.Int(key, def)

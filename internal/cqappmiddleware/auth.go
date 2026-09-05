@@ -1,4 +1,4 @@
-package middleware
+package cqappmiddleware
 
 import (
 	"context"
@@ -9,38 +9,29 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
-
+	"github.com/aurc/commission-quote-app/internal/platform/authtoken"
 	"github.com/aurc/commission-quote-app/internal/platform/httpx"
 	"github.com/aurc/commission-quote-app/internal/platform/secrets"
 )
 
-// Token identity, per contract.md section 7.
+// The token contract lives in platform/authtoken so the BFF and the Middleware
+// share one definition without importing each other.
 const (
-	Issuer   = "cqapp-bff"
-	Audience = "cqapp-middleware"
-
-	// signingMethod is pinned. A verifier that accepts whatever the token's
-	// header nominates can be handed an unsigned token, or an HMAC token it
-	// verifies with a key it believed was for RSA.
-	signingMethod = "HS256"
+	Issuer             = authtoken.Issuer
+	Audience           = authtoken.Audience
+	ScopeQuoteGenerate = authtoken.ScopeQuoteGenerate
 )
 
-// Claims are the claims we read. RegisteredClaims covers iss, aud, exp, iat,
-// sub and jti.
-type Claims struct {
-	jwt.RegisteredClaims
-	// Scope is what the caller is asking to do. It is not a grant; see
-	// Entitlements.
-	Scope []string `json:"scope"`
-}
+// Claims, Caller and Verifier are the shared token types.
+type (
+	Claims   = authtoken.Claims
+	Caller   = authtoken.Caller
+	Verifier = authtoken.Verifier
+)
 
-// Caller is a verified identity. Requested holds the scopes the token asked
-// for, deliberately named so it cannot be mistaken for what was granted.
-type Caller struct {
-	Subject   string
-	TokenID   string
-	Requested []string
+// NewVerifier builds a token verifier.
+func NewVerifier(secret secrets.Value, leeway time.Duration) *Verifier {
+	return authtoken.NewVerifier(secret, leeway)
 }
 
 type callerKey struct{}
@@ -54,53 +45,6 @@ func WithCaller(ctx context.Context, c Caller) context.Context {
 func CallerFrom(ctx context.Context) (Caller, bool) {
 	c, ok := ctx.Value(callerKey{}).(Caller)
 	return c, ok
-}
-
-// Verifier checks bearer tokens minted by the BFF.
-type Verifier struct {
-	key    []byte
-	parser *jwt.Parser
-}
-
-// NewVerifier builds a Verifier. Leeway absorbs clock skew between containers;
-// exp is only 60 seconds, so a few seconds of tolerance is the difference
-// between working and failing intermittently.
-func NewVerifier(secret secrets.Value, leeway time.Duration) *Verifier {
-	return &Verifier{
-		key: []byte(secret.Reveal()),
-		parser: jwt.NewParser(
-			jwt.WithValidMethods([]string{signingMethod}),
-			jwt.WithIssuer(Issuer),
-			jwt.WithAudience(Audience),
-			jwt.WithExpirationRequired(),
-			jwt.WithLeeway(leeway),
-			jwt.WithIssuedAt(),
-		),
-	}
-}
-
-var errNoSubject = errors.New("token has no subject")
-
-// Verify parses and validates a token, returning the caller it identifies.
-func (v *Verifier) Verify(raw string) (Caller, error) {
-	var claims Claims
-	if _, err := v.parser.ParseWithClaims(raw, &claims, func(*jwt.Token) (any, error) {
-		return v.key, nil
-	}); err != nil {
-		return Caller{}, err
-	}
-	// A blank or whitespace subject is a failure to establish identity, not an
-	// identity with no entitlements. Letting it through would authenticate an
-	// anonymous caller and then attribute their request to nobody in the logs.
-	subject := strings.TrimSpace(claims.Subject)
-	if subject == "" {
-		return Caller{}, errNoSubject
-	}
-	return Caller{
-		Subject:   subject,
-		TokenID:   claims.ID,
-		Requested: claims.Scope,
-	}, nil
 }
 
 // Authenticate verifies the bearer token and attaches the caller to the request.

@@ -21,7 +21,7 @@ BIN      = bin
 .PHONY: help
 help: ## List targets
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
-		| awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
+		| awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-22s\033[0m %s\n", $$1, $$2}'
 
 .PHONY: build
 build: ## Build every service into bin/
@@ -69,7 +69,8 @@ check: fmt vet test ## Format, vet and test. Run before opening a PR
 clean: ## Remove build output
 	rm -rf $(BIN)
 
-# Native dev. The reviewer path is docker compose, added in CQ-08.
+# Native dev. One target per cmd/ entry, named after it. The reviewer path is
+# docker compose, added in CQ-08.
 .PHONY: env
 env: ## Create .env from .env.example if it does not exist
 	@if [ -f .env ]; then \
@@ -78,14 +79,18 @@ env: ## Create .env from .env.example if it does not exist
 		cp .env.example .env && echo "created .env from .env.example"; \
 	fi
 
-.PHONY: token
-token: ## Print a development bearer token (ARGS='-sub staff-002')
+.PHONY: dev-staff
+dev-staff: ## Add a staff member to the fixtures, prompting for a password
+	@$(RUN_ENV) $(GO) run ./cmd/devstaff $(ARGS)
+
+.PHONY: dev-token
+dev-token: ## Print a bearer token, to call the middleware without the BFF
 	@$(RUN_ENV) $(GO) run ./cmd/devtoken $(ARGS)
 
-.PHONY: run-cqapi-mock run-middleware run-bff
-run-cqapi-mock: ## Run the vendor mock
+.PHONY: run-cqapi-mock run-cqapp-middleware run-cqapp-bff
+run-cqapi-mock: ## Run the vendor mock, port 8083
 	@$(RUN_ENV) $(GO) run ./cmd/cqapi-mock
-run-middleware: ## Run the middleware
+run-cqapp-middleware: ## Run the middleware, port 8082
 	@$(RUN_ENV) $(GO) run ./cmd/cqapp-middleware
-run-bff: ## Run the BFF
+run-cqapp-bff: ## Run the BFF, port 8081
 	@$(RUN_ENV) $(GO) run ./cmd/cqapp-bff

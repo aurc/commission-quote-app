@@ -1,4 +1,4 @@
-package middleware_test
+package cqappmiddleware_test
 
 import (
 	"bytes"
@@ -10,7 +10,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/aurc/commission-quote-app/internal/middleware"
+	"github.com/aurc/commission-quote-app/internal/cqappmiddleware"
 	"github.com/aurc/commission-quote-app/internal/platform/logging"
 	"github.com/aurc/commission-quote-app/internal/platform/staffdir"
 )
@@ -36,11 +36,11 @@ func staffFixture(t *testing.T) *staffdir.Directory {
 func entitledSubject(t *testing.T) string {
 	t.Helper()
 	for _, s := range staffFixture(t).All() {
-		if slices.Contains(s.Scopes, middleware.ScopeQuoteGenerate) {
+		if slices.Contains(s.Scopes, cqappmiddleware.ScopeQuoteGenerate) {
 			return s.ID
 		}
 	}
-	t.Fatalf("the fixture needs a staff member holding %s", middleware.ScopeQuoteGenerate)
+	t.Fatalf("the fixture needs a staff member holding %s", cqappmiddleware.ScopeQuoteGenerate)
 	return ""
 }
 
@@ -49,11 +49,11 @@ func entitledSubject(t *testing.T) string {
 func unentitledSubject(t *testing.T) string {
 	t.Helper()
 	for _, s := range staffFixture(t).All() {
-		if !slices.Contains(s.Scopes, middleware.ScopeQuoteGenerate) {
+		if !slices.Contains(s.Scopes, cqappmiddleware.ScopeQuoteGenerate) {
 			return s.ID
 		}
 	}
-	t.Fatalf("the fixture needs a staff member without %s, or 403 is untested", middleware.ScopeQuoteGenerate)
+	t.Fatalf("the fixture needs a staff member without %s, or 403 is untested", cqappmiddleware.ScopeQuoteGenerate)
 	return ""
 }
 
@@ -146,8 +146,8 @@ func newMiddlewareWithLogs(t *testing.T, vendor *fakeVendor, logs *testBuffer) h
 	cfg.VendorBaseURL = vendor.URL
 
 	log := logging.New(logging.Options{Component: "middleware", Output: logs})
-	client := middleware.NewVendorClient(cfg.VendorBaseURL, cfg.VendorAPIKey, cfg.VendorTimeout, log)
-	return middleware.NewRouterWith(cfg, staffFixture(t), client, log)
+	client := cqappmiddleware.NewVendorClient(cfg.VendorBaseURL, cfg.VendorAPIKey, cfg.VendorTimeout, log)
+	return cqappmiddleware.NewRouterWith(cfg, staffFixture(t), client, log)
 }
 
 // quote posts a body as an entitled caller.
@@ -162,12 +162,12 @@ func quote(t *testing.T, h http.Handler, body string) *httptest.ResponseRecorder
 }
 
 // newMiddlewareWithConfig wires a router with an explicit config.
-func newMiddlewareWithConfig(t *testing.T, vendor *fakeVendor, cfg middleware.Config, logs *testBuffer) http.Handler {
+func newMiddlewareWithConfig(t *testing.T, vendor *fakeVendor, cfg cqappmiddleware.Config, logs *testBuffer) http.Handler {
 	t.Helper()
 	if cfg.VendorBaseURL == "" {
 		cfg.VendorBaseURL = vendor.URL
 	}
 	log := logging.New(logging.Options{Component: "middleware", Output: logs})
-	client := middleware.NewVendorClient(cfg.VendorBaseURL, cfg.VendorAPIKey, cfg.VendorTimeout, log)
-	return middleware.NewRouterWith(cfg, staffFixture(t), client, log)
+	client := cqappmiddleware.NewVendorClient(cfg.VendorBaseURL, cfg.VendorAPIKey, cfg.VendorTimeout, log)
+	return cqappmiddleware.NewRouterWith(cfg, staffFixture(t), client, log)
 }

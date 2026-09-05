@@ -32,7 +32,7 @@ create a second quote. A retry is therefore only permitted where the failure pro
 ## Deliverables
 
 ```
-internal/middleware/
+internal/cqappmiddleware/
   vendor.go     classify failures as transient or not
   retry.go      bounded backoff with full jitter
   breaker.go    circuit breaker

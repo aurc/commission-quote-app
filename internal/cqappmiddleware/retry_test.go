@@ -1,4 +1,4 @@
-package middleware_test
+package cqappmiddleware_test
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aurc/commission-quote-app/internal/middleware"
+	"github.com/aurc/commission-quote-app/internal/cqappmiddleware"
 	"github.com/aurc/commission-quote-app/internal/platform/logging"
 )
 
@@ -19,12 +19,12 @@ type countingVendor struct {
 	calls    atomic.Int32
 	handler  http.HandlerFunc
 	fake     *fakeVendor
-	retrier  *middleware.Retrier
+	retrier  *cqappmiddleware.Retrier
 	slept    []time.Duration
 	deadline time.Time
 }
 
-func retrierOver(t *testing.T, cfg middleware.RetryConfig, handler http.HandlerFunc) (*countingVendor, middleware.QuoteSource) {
+func retrierOver(t *testing.T, cfg cqappmiddleware.RetryConfig, handler http.HandlerFunc) (*countingVendor, cqappmiddleware.QuoteSource) {
 	t.Helper()
 	cv := &countingVendor{}
 	cv.fake = newFakeVendor(t, func(w http.ResponseWriter, r *http.Request) {
@@ -33,11 +33,11 @@ func retrierOver(t *testing.T, cfg middleware.RetryConfig, handler http.HandlerF
 	})
 
 	log := logging.New(logging.Options{Component: "middleware", Output: io.Discard})
-	client := middleware.NewVendorClient(cv.fake.URL, vendorKey, 2*time.Second, log)
+	client := cqappmiddleware.NewVendorClient(cv.fake.URL, vendorKey, 2*time.Second, log)
 
-	r := middleware.NewRetrier(client, cfg, log)
+	r := cqappmiddleware.NewRetrier(client, cfg, log)
 	// No test waits for real; record what it would have waited instead.
-	middleware.SetRetrierTiming(r,
+	cqappmiddleware.SetRetrierTiming(r,
 		func(int64) int64 { return 1 },
 		func(_ context.Context, d time.Duration) error {
 			cv.slept = append(cv.slept, d)
@@ -49,17 +49,17 @@ func retrierOver(t *testing.T, cfg middleware.RetryConfig, handler http.HandlerF
 	return cv, r
 }
 
-func defaultRetry() middleware.RetryConfig {
-	return middleware.RetryConfig{Attempts: 3, Base: 150 * time.Millisecond, Cap: time.Second}
+func defaultRetry() cqappmiddleware.RetryConfig {
+	return cqappmiddleware.RetryConfig{Attempts: 3, Base: 150 * time.Millisecond, Cap: time.Second}
 }
 
 func status(code int) http.HandlerFunc {
 	return func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(code) }
 }
 
-func validQuoteRequest(t *testing.T) middleware.QuoteRequest {
+func validQuoteRequest(t *testing.T) cqappmiddleware.QuoteRequest {
 	t.Helper()
-	req, errs := middleware.Validate([]byte(validRequest))
+	req, errs := cqappmiddleware.Validate([]byte(validRequest))
 	if len(errs) > 0 {
 		t.Fatalf("the fixture request must be valid: %v", errs)
 	}
@@ -121,7 +121,7 @@ func TestAmbiguousFailureIsNeverRetried(t *testing.T) {
 	if got := cv.calls.Load(); got != 1 {
 		t.Fatalf("a 500 reached the vendor %d times; it must be sent exactly once, since the vendor may already have created a quote", got)
 	}
-	if errors.Is(err, middleware.ErrTransient) {
+	if errors.Is(err, cqappmiddleware.ErrTransient) {
 		t.Error("a 500 must not be marked transient")
 	}
 }
@@ -165,7 +165,7 @@ func TestSuccessFirstTimeDoesNotRetry(t *testing.T) {
 
 // Backoff must grow and stay under the cap.
 func TestBackoffGrowsAndIsCapped(t *testing.T) {
-	cfg := middleware.RetryConfig{Attempts: 5, Base: 100 * time.Millisecond, Cap: 300 * time.Millisecond}
+	cfg := cqappmiddleware.RetryConfig{Attempts: 5, Base: 100 * time.Millisecond, Cap: 300 * time.Millisecond}
 	cv, source := retrierOver(t, cfg, status(http.StatusServiceUnavailable))
 
 	_, _ = source.Quote(context.Background(), validQuoteRequest(t))
@@ -202,7 +202,7 @@ func TestRetryAfterIsHonoured(t *testing.T) {
 // Waiting out the remaining budget to make a call that cannot finish spends the
 // time the user is waiting on and returns the same failure later.
 func TestRetriesStopWhenTheBudgetIsNearlyGone(t *testing.T) {
-	cfg := middleware.RetryConfig{Attempts: 5, Base: time.Second, Cap: time.Second}
+	cfg := cqappmiddleware.RetryConfig{Attempts: 5, Base: time.Second, Cap: time.Second}
 	cv, source := retrierOver(t, cfg, status(http.StatusServiceUnavailable))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)

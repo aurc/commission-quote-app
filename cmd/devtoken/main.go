@@ -1,18 +1,21 @@
 // Command devtoken prints a bearer token for calling the Middleware directly
 // during development.
 //
-// Development only. It exists because the BFF, which mints these tokens for
-// real, arrives in CQ-06, and until then the Middleware cannot be exercised by
-// hand. It is not in the SERVICES list, is never built into an image, and should
-// be deleted once the BFF can issue a session.
+// Development only. It is not in the SERVICES list and is never built into an
+// image.
+//
+// CQ-06 said this should be deleted once the BFF could issue a session. It
+// survives on a change of mind: the Middleware is independently deployable and
+// worth being able to exercise on its own, without standing up a BFF and a
+// browser session to make one call to it.
 //
 // It mints nothing it is not already entitled to: it signs with the same
 // BFF_MIDDLEWARE_SIGNING_KEY the Middleware verifies with, so anyone who can run
 // it already holds the key.
 //
-//	make token                            # the first entitled staff member
-//	make token ARGS='-sub <id>'           # any id from config/staff.csv
-//	make token ARGS='-scope ""'           # a token that does not request the scope
+//	make dev-token                            # the first entitled staff member
+//	make dev-token ARGS='-sub <id>'           # any id from config/staff.csv
+//	make dev-token ARGS='-scope ""'           # a token that does not request the scope
 package main
 
 import (
@@ -23,15 +26,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
-
-	"github.com/aurc/commission-quote-app/internal/middleware"
+	"github.com/aurc/commission-quote-app/internal/cqappmiddleware"
+	"github.com/aurc/commission-quote-app/internal/platform/authtoken"
+	"github.com/aurc/commission-quote-app/internal/platform/secrets"
 	"github.com/aurc/commission-quote-app/internal/platform/staffdir"
 )
 
 func main() {
 	subject := flag.String("sub", "", "staff subject, defaults to the first entitled staff member in the fixture")
-	scope := flag.String("scope", middleware.ScopeQuoteGenerate, "space separated scopes to request, empty for none")
+	scope := flag.String("scope", cqappmiddleware.ScopeQuoteGenerate, "space separated scopes to request, empty for none")
 	ttl := flag.Duration("ttl", time.Minute, "how long the token is valid for")
 	flag.Parse()
 
@@ -50,20 +53,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	now := time.Now()
-	claims := middleware.Claims{
-		RegisteredClaims: jwt.RegisteredClaims{
-			Issuer:    middleware.Issuer,
-			Subject:   *subject,
-			Audience:  jwt.ClaimStrings{middleware.Audience},
-			IssuedAt:  jwt.NewNumericDate(now),
-			ExpiresAt: jwt.NewNumericDate(now.Add(*ttl)),
-			ID:        fmt.Sprintf("devtoken-%d", now.UnixNano()),
-		},
-		Scope: strings.Fields(*scope),
-	}
-
-	signed, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte(key))
+	signed, err := authtoken.Mint(secrets.Value(key), *subject, strings.Fields(*scope), *ttl)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "devtoken: %v\n", err)
 		os.Exit(1)
@@ -83,9 +73,9 @@ func firstEntitled() (string, error) {
 		return "", fmt.Errorf("%w (or pass -sub)", err)
 	}
 	for _, s := range dir.All() {
-		if slices.Contains(s.Scopes, middleware.ScopeQuoteGenerate) {
+		if slices.Contains(s.Scopes, cqappmiddleware.ScopeQuoteGenerate) {
 			return s.ID, nil
 		}
 	}
-	return "", fmt.Errorf("no staff member in %s holds %s, pass -sub", path, middleware.ScopeQuoteGenerate)
+	return "", fmt.Errorf("no staff member in %s holds %s, pass -sub", path, cqappmiddleware.ScopeQuoteGenerate)
 }

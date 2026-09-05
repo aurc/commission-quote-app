@@ -3,17 +3,12 @@
 //
 // It is the only component that holds the vendor credential and the only one
 // that decides whether a caller may generate a quote.
-package middleware
+package cqappmiddleware
 
 import (
 	"context"
 	"slices"
 )
-
-// ScopeQuoteGenerate is the scope required to generate a quote. It is published
-// in api/middleware.openapi.yaml so a consumer learns the requirement from the
-// contract rather than by being refused.
-const ScopeQuoteGenerate = "quote:generate"
 
 // Entitlements reports what a subject is permitted to do.
 //

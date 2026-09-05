@@ -1,4 +1,4 @@
-package middleware_test
+package cqappmiddleware_test
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aurc/commission-quote-app/internal/middleware"
+	"github.com/aurc/commission-quote-app/internal/cqappmiddleware"
 	"github.com/aurc/commission-quote-app/internal/platform/staffdir"
 )
 
@@ -18,7 +18,7 @@ func TestFixtureSupportsBothAuthorisationOutcomes(t *testing.T) {
 
 	var entitled, unentitled int
 	for _, s := range all {
-		if slices.Contains(s.Scopes, middleware.ScopeQuoteGenerate) {
+		if slices.Contains(s.Scopes, cqappmiddleware.ScopeQuoteGenerate) {
 			entitled++
 		} else {
 			unentitled++
@@ -26,7 +26,7 @@ func TestFixtureSupportsBothAuthorisationOutcomes(t *testing.T) {
 	}
 
 	if entitled == 0 {
-		t.Errorf("the fixture needs a staff member holding %s", middleware.ScopeQuoteGenerate)
+		t.Errorf("the fixture needs a staff member holding %s", cqappmiddleware.ScopeQuoteGenerate)
 	}
 	if unentitled == 0 {
 		t.Error("the fixture needs a staff member holding nothing, or the 403 path is not exercised")
@@ -36,10 +36,10 @@ func TestFixtureSupportsBothAuthorisationOutcomes(t *testing.T) {
 // The directory satisfies the interface the Middleware authorises against, so
 // the running service and the tests exercise the same code path.
 func TestDirectorySatisfiesEntitlements(t *testing.T) {
-	var e middleware.Entitlements = staffFixture(t)
+	var e cqappmiddleware.Entitlements = staffFixture(t)
 	ctx := context.Background()
 
-	granted, err := middleware.Allows(ctx, e, entitledSubject(t), middleware.ScopeQuoteGenerate)
+	granted, err := cqappmiddleware.Allows(ctx, e, entitledSubject(t), cqappmiddleware.ScopeQuoteGenerate)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -47,7 +47,7 @@ func TestDirectorySatisfiesEntitlements(t *testing.T) {
 		t.Error("the entitled subject must be granted the scope")
 	}
 
-	granted, err = middleware.Allows(ctx, e, unentitledSubject(t), middleware.ScopeQuoteGenerate)
+	granted, err = cqappmiddleware.Allows(ctx, e, unentitledSubject(t), cqappmiddleware.ScopeQuoteGenerate)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,8 +59,8 @@ func TestDirectorySatisfiesEntitlements(t *testing.T) {
 // Not being in the directory is a valid answer to "what may they do", and must
 // be a refusal rather than an error.
 func TestUnknownSubjectIsRefusedNotAnError(t *testing.T) {
-	granted, err := middleware.Allows(context.Background(), staffFixture(t),
-		"staff-not-in-the-fixture", middleware.ScopeQuoteGenerate)
+	granted, err := cqappmiddleware.Allows(context.Background(), staffFixture(t),
+		"staff-not-in-the-fixture", cqappmiddleware.ScopeQuoteGenerate)
 
 	if err != nil {
 		t.Fatalf("an unknown subject must not be an error: %v", err)
@@ -82,17 +82,17 @@ func TestEntitlementFollowsTheSource(t *testing.T) {
 	}
 	ctx := context.Background()
 
-	if granted, _ := middleware.Allows(ctx, dir, "someone", middleware.ScopeQuoteGenerate); !granted {
+	if granted, _ := cqappmiddleware.Allows(ctx, dir, "someone", cqappmiddleware.ScopeQuoteGenerate); !granted {
 		t.Error("a subject granted the scope in the source must be allowed")
 	}
-	if granted, _ := middleware.Allows(ctx, dir, "nobody", middleware.ScopeQuoteGenerate); granted {
+	if granted, _ := cqappmiddleware.Allows(ctx, dir, "nobody", cqappmiddleware.ScopeQuoteGenerate); granted {
 		t.Error("a subject without the scope in the source must be refused")
 	}
 }
 
 // An Entitlements source that fails must not be read as a grant.
 func TestEntitlementSourceFailureIsNotAGrant(t *testing.T) {
-	granted, err := middleware.Allows(context.Background(), failingEntitlements{}, "anyone", middleware.ScopeQuoteGenerate)
+	granted, err := cqappmiddleware.Allows(context.Background(), failingEntitlements{}, "anyone", cqappmiddleware.ScopeQuoteGenerate)
 
 	if err == nil {
 		t.Fatal("the error must be reported")
