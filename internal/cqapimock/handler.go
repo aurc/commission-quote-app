@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/aurc/commission-quote-app/internal/platform/httpx"
+	"github.com/aurc/commission-quote-app/internal/platform/money"
 	"github.com/aurc/commission-quote-app/internal/platform/telemetry"
 )
 
@@ -73,12 +74,19 @@ func (h *Handler) Quote(w http.ResponseWriter, r *http.Request) {
 		h.reject(w, r, "loanAmount "+err.Error(), err)
 		return
 	}
-	amount, err := ParseCents(amountText)
+	amount, err := money.ParseAmount(amountText)
 	if err != nil {
-		h.reject(w, r, "loanAmount "+ErrAmountFormat.Error(), err)
+		h.reject(w, r, "loanAmount must be a decimal amount with at most 2 decimal places", err)
 		return
 	}
-	if amount <= 0 {
+	// The vendor publishes a two decimal place amount, so it enforces that much.
+	// It does not enforce our business ranges: see below.
+	if amount.DecimalPlaces() > 2 {
+		h.reject(w, r, "loanAmount must be a decimal amount with at most 2 decimal places",
+			errors.New("too many decimal places"))
+		return
+	}
+	if amount.Sign() <= 0 {
 		h.reject(w, r, "loanAmount must be greater than zero", errors.New("non positive amount"))
 		return
 	}
@@ -117,7 +125,7 @@ func (h *Handler) Quote(w http.ResponseWriter, r *http.Request) {
 
 	h.log.InfoContext(ctx, "quote generated",
 		slog.String("quoteId", quote.QuoteID),
-		slog.Int64("loanAmountCents", int64(amount)),
+		slog.String("loanAmount", amount.String()),
 		slog.Int64("loanTermInMonths", months),
 		slog.String("riskBand", string(band)),
 		slog.Float64("commissionRate", quote.CommissionRate.Float()),
@@ -163,7 +171,7 @@ func NewRouter(cfg Config, log *slog.Logger) http.Handler {
 	// recoverer sits inside the request logger so a panic is still logged with
 	// its status.
 	return httpx.Chain(mux,
-		telemetry.Middleware("cqapi"),
+		telemetry.Middleware("cqapi-mock"),
 		httpx.Correlation(),
 		httpx.RequestLogger(log),
 		httpx.Recoverer(log),

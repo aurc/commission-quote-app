@@ -9,14 +9,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aurc/commission-quote-app/internal/cqapi"
+	"github.com/aurc/commission-quote-app/internal/cqapimock"
 	"github.com/aurc/commission-quote-app/internal/platform/logging"
 )
 
 func statuses(t *testing.T, cfg cqapi.Config, n int) []int {
 	t.Helper()
 	cfg.APIKey = testKey
-	h := cqapi.NewRouter(cfg, logging.New(logging.Options{Component: "cqapi", Output: io.Discard}))
+	h := cqapi.NewRouter(cfg, logging.New(logging.Options{Component: "cqapi-mock", Output: io.Discard}))
 
 	out := make([]int, 0, n)
 	for range n {
@@ -94,7 +94,7 @@ func TestFailureRateIsApproximatelyHonoured(t *testing.T) {
 // behaviour CQ-05's timeout budget is written against.
 func TestSlowRequestStopsWhenTheCallerGivesUp(t *testing.T) {
 	cfg := cqapi.Config{APIKey: testKey, SlowRate: 1.0, SlowDelay: 2 * time.Second, Seed: 5}
-	h := cqapi.NewRouter(cfg, logging.New(logging.Options{Component: "cqapi", Output: io.Discard}))
+	h := cqapi.NewRouter(cfg, logging.New(logging.Options{Component: "cqapi-mock", Output: io.Discard}))
 
 	req := httptest.NewRequest(http.MethodPost, "/v1/quotes", strings.NewReader(validBody))
 	req.Header.Set(cqapi.APIKeyHeader, testKey)
@@ -128,7 +128,7 @@ func TestLatencyIsBounded(t *testing.T) {
 		LatencyMax: 30 * time.Millisecond,
 		Seed:       3,
 	}
-	h := cqapi.NewRouter(cfg, logging.New(logging.Options{Component: "cqapi", Output: io.Discard}))
+	h := cqapi.NewRouter(cfg, logging.New(logging.Options{Component: "cqapi-mock", Output: io.Discard}))
 
 	for range 5 {
 		req := httptest.NewRequest(http.MethodPost, "/v1/quotes", strings.NewReader(validBody))

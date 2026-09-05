@@ -35,9 +35,18 @@ type FieldError struct {
 	Code  string `json:"code"`
 }
 
-// Error is a failure that can be rendered to a caller. Message is always safe to
-// display. Cause is logged and never leaves the process, which is what keeps a
-// vendor credential failure from reaching a staff user's screen.
+// Error is a failure that can be rendered to a caller.
+//
+// Message states the condition in API terms: what happened, not what a person
+// should do about it. These services are internal and have no browser, so a
+// message like "sign in again" would be a remedy expressed in terms of a UI that
+// may not exist. The BFF owns user facing wording, mapping Code to whatever the
+// front end should say; see contract.md section 5.
+//
+// Message must still be safe to return: no credentials, no hostnames, no
+// internal state. Cause carries that detail, is logged, and never leaves the
+// process, which is what keeps a vendor credential failure off a staff user's
+// screen.
 type Error struct {
 	Code       string
 	Status     int
@@ -63,7 +72,7 @@ func Validation(details ...FieldError) *Error {
 	return &Error{
 		Code:    CodeValidationFailed,
 		Status:  http.StatusBadRequest,
-		Message: "Check the highlighted fields.",
+		Message: "request failed validation",
 		Details: details,
 	}
 }
@@ -73,7 +82,7 @@ func Malformed(cause error) *Error {
 	return &Error{
 		Code:    CodeValidationFailed,
 		Status:  http.StatusBadRequest,
-		Message: "Check the highlighted fields.",
+		Message: "request body could not be parsed",
 		Details: []FieldError{{Field: "body", Code: "malformed_body"}},
 		cause:   cause,
 	}
@@ -84,7 +93,7 @@ func Unauthenticated(cause error) *Error {
 	return &Error{
 		Code:    CodeUnauthenticated,
 		Status:  http.StatusUnauthorized,
-		Message: "Your session has expired. Sign in again.",
+		Message: "bearer token missing, invalid or expired",
 		cause:   cause,
 	}
 }
@@ -94,7 +103,7 @@ func Forbidden(cause error) *Error {
 	return &Error{
 		Code:    CodeForbidden,
 		Status:  http.StatusForbidden,
-		Message: "You do not have access to generate quotes.",
+		Message: "caller is not entitled to the required scope",
 		cause:   cause,
 	}
 }
@@ -102,12 +111,13 @@ func Forbidden(cause error) *Error {
 // UpstreamUnavailable reports that the vendor could not produce a quote. This is
 // deliberately also the mapping for a rejected vendor api-key: that is our
 // operational fault, not the caller's authentication problem, so it must never
-// surface as a 401. See contract.md section 5.
+// surface as a 401, and the message must not hint that a credential exists.
+// See contract.md section 5.
 func UpstreamUnavailable(cause error) *Error {
 	return &Error{
 		Code:    CodeUpstreamUnavailable,
 		Status:  http.StatusBadGateway,
-		Message: "Quotes are unavailable right now. Try again shortly.",
+		Message: "upstream quote provider unavailable",
 		cause:   cause,
 	}
 }
@@ -117,7 +127,7 @@ func UpstreamContract(cause error) *Error {
 	return &Error{
 		Code:    CodeUpstreamContract,
 		Status:  http.StatusBadGateway,
-		Message: "Quotes are unavailable right now. Try again shortly.",
+		Message: "upstream quote provider returned an unexpected response",
 		cause:   cause,
 	}
 }
@@ -127,7 +137,7 @@ func UpstreamTimeout(cause error) *Error {
 	return &Error{
 		Code:    CodeUpstreamTimeout,
 		Status:  http.StatusGatewayTimeout,
-		Message: "The quote service took too long. Try again.",
+		Message: "upstream quote provider timed out",
 		cause:   cause,
 	}
 }
@@ -137,7 +147,7 @@ func CircuitOpen(retryAfter time.Duration) *Error {
 	return &Error{
 		Code:       CodeCircuitOpen,
 		Status:     http.StatusServiceUnavailable,
-		Message:    "Quotes are paused briefly. Try again in a moment.",
+		Message:    "upstream calls suspended by circuit breaker",
 		RetryAfter: retryAfter,
 	}
 }
@@ -147,7 +157,7 @@ func Internal(cause error) *Error {
 	return &Error{
 		Code:    CodeInternal,
 		Status:  http.StatusInternalServerError,
-		Message: "Something went wrong. Try again.",
+		Message: "internal error",
 		cause:   cause,
 	}
 }

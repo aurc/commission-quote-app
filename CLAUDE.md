@@ -8,12 +8,34 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Never push to `main`.** Work happens on `cq-0N-<slug>` branches.
 - **Pause after the plan.** Commit the task plan, then stop and let the owner review it before
   writing any implementation. Do not run the plan commit and the implementation in one go.
+- **Run `make check` before every commit.** Do not commit with a failing test.
 - Prose style in docs and replies: concise, tables over paragraphs, no em dashes.
+
+## Commands
+
+Go 1.26, single module. `golangci-lint` is used if installed and skipped if not.
+
+| Command | Does |
+|---|---|
+| `make check` | fmt, vet, `go test -race ./...`. Run before committing |
+| `make test` | Tests with the race detector |
+| `go test ./internal/middleware/ -run TestAuthenticationFailuresAre401` | A single test |
+| `make cover` | Coverage per package |
+| `make env` | Create `.env` from `.env.example`, needed before any `run-` target |
+| `make run-cqapi-mock`, `make run-middleware` | Run one service natively |
+| `make token` | Development bearer token. `ARGS='-sub staff-002'` for an unentitled subject |
+| `make build` | Build into `bin/` |
+
+`.env` loads only into `run-` and `token`, never into `make test`. Tests must not depend on a
+developer's environment; keep them hermetic in their own right, not because the Makefile is careful.
+
+Ports: edge 8080, bff 8081, middleware 8082, cqapi-mock 8083.
 
 ## Current state
 
-Design and planning are complete. No application code yet: no `go.mod`, no `package.json`, no build
-or test tooling. Add commands to this file as each is created.
+| Done | Remaining |
+|---|---|
+| CQ-01 design, CQ-02 platform, CQ-03 vendor mock, CQ-04 middleware | CQ-05 resilience, CQ-06 BFF, CQ-07 web, CQ-08 edge and compose |
 
 Authoritative documents, read both before writing code:
 
@@ -45,7 +67,7 @@ calls the Middleware, and the vendor key never reaches the BFF or the browser.
 | FE | React + Vite | via edge | Form, inline validation, loading/error/result states |
 | BFF | Go | 8081 | Session cookie, cookie to bearer exchange, UI friendly errors. No business logic, no vendor credential |
 | Middleware | Go | 8082 | Claim verification, authoritative validation, retries, breaker, OpenAPI, holds the `api-key` |
-| CQAPI (mock) | Go | 8083 | Vendor contract, `api-key` enforcement, failure and latency injection |
+| cqapi-mock | Go | 8083 | Vendor contract, `api-key` enforcement, failure and latency injection |
 
 Abbreviations: **CQApp** (this app), **CQAPI** (mocked vendor), **FE**, **BFF**.
 
@@ -56,10 +78,13 @@ go.mod                    single module
 api/
   cqapi.openapi.yaml      vendor published contract, hand written
   middleware.openapi.yaml our published contract, hand written
-cmd/{bff,middleware,cqapi}/main.go
+cmd/
+  cqapp-bff/       our binaries carry the cqapp- prefix
+  cqapp-middleware/
+  cqapi-mock/      the vendor stand in, named for what it is
 internal/
   platform/               log, config, otel, secrets, http helpers
-  bff/  middleware/  cqapi/
+  bff/  middleware/  cqapimock/
 web/                      React + Vite
 deploy/                   nginx.conf, docker-compose.yml, Dockerfiles
 ```
@@ -81,6 +106,19 @@ Reviewer run path is `docker compose up`. Makefile targets exist for native dev.
 - Stateless everywhere. No persistence. Quotes are advisory, not binding.
 - `loanAmount` is logged as business data. Secrets, bearer tokens and cookie values never are.
 - Single currency AUD, no localisation. View only staff user.
+- **Money is `math/big.Rat`, never `float64`.** `internal/platform/money`. Nothing rounds until a
+  boundary, where `RoundHalfUp` is applied once. Boundaries are `int64` cents or ten thousandths and
+  report overflow rather than wrapping.
+- **Staff live in `config/staff.csv`, never hard coded.** Read through `internal/platform/staffdir`.
+  The BFF takes identity from it and the Middleware takes entitlement, so the two cannot disagree
+  about who exists. Keep at least one member with no scopes or the `403` path stops being tested.
+- **A token's `scope` claim is a request, not a grant.** The BFF writes it and the BFF is the party
+  being checked, so trusting it alone is circular. The Middleware decides entitlement from its own
+  `Entitlements` source. Both conditions are required.
+- **The Middleware writes API messages, the BFF writes user copy.** No "sign in again" in a service
+  with no browser. `code` is the stable contract; prose is presentation. A test enforces this.
+- **Numbers arrive as raw JSON text, not decoded floats.** It is the only way to tell `999.999` from
+  `1000.00`, and it is what lets a quoted `"1000"` be rejected.
 
 ## Workflow
 
@@ -93,3 +131,17 @@ Per task, per `README.md`:
 5. Open a PR titled `CQ-0N - <title>`. Do not merge it.
 
 `README.md` must end up with an AI usage transparency section, required by the brief.
+
+## Verifying by hand
+
+Kill stale processes **by port**, not by name: `go run` children have survived `pkill -f` twice in
+this repo and served requests that looked like passing checks.
+
+```sh
+for p in 8081 8082 8083; do
+  PIDS=$(lsof -nP -tiTCP:$p -sTCP:LISTEN); [ -n "$PIDS" ] && kill -9 $PIDS
+done
+```
+
+`httpx.Serve` binds before it logs `listening`, so a failed bind never reads as a running service.
+If a manual check gives a surprising result, confirm which process actually answered.

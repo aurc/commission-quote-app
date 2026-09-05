@@ -1,0 +1,309 @@
+# Our published contract for the Commission Quote Middleware.
+#
+# In the MVP this is close to the vendor's contract in api/cqapi.openapi.yaml,
+# because the Middleware currently orchestrates one vendor call. The two are
+# separate documents because they are expected to diverge: the Middleware gains
+# capability, or the vendor is replaced, and neither should force a change on the
+# other.
+#
+# Differences from the vendor contract today:
+#   - bearer authentication and a published required scope, instead of an api-key
+#   - our error envelope, instead of the vendor's {"error": "..."} shape
+#   - our business ranges on loanAmount and loanTermInMonths, which the vendor
+#     does not know about
+#   - 200 rather than 201: this service creates and stores nothing
+openapi: 3.1.0
+
+info:
+  title: Commission Quote Middleware
+  version: 1.0.0
+  description: >
+    Internal service that verifies caller claims, validates loan details
+    authoritatively, and orchestrates the vendor Commission Quote API.
+    Not browser facing: the Edge routes browser traffic to the BFF, which calls
+    this service.
+
+servers:
+  - url: http://localhost:8082
+    description: Local
+
+security:
+  - bearerAuth: []
+
+paths:
+  /v1/quotes:
+    post:
+      operationId: createQuote
+      summary: Generate a commission quote
+      description: >
+        Requires the `quote:generate` scope. The scope must be requested in the
+        token's `scope` claim and independently granted to the subject by this
+        service. A token that requests a scope it has not been granted is
+        refused with 403.
+      security:
+        - bearerAuth: []
+      # Required scopes are stated here as well as in the description. The
+      # bearer scheme cannot carry them natively: only oauth2 and openIdConnect
+      # can, and both must name a token or discovery endpoint. There is none in
+      # the MVP, since the BFF mints the token itself, and a fictional tokenUrl
+      # in a published contract is worse than an extension.
+      x-required-scopes:
+        - quote:generate
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/TraceParent"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QuoteRequest"
+            example:
+              loanAmount: 250000.00
+              loanTermInMonths: 240
+              riskBand: B
+      responses:
+        "200":
+          description: >
+            Quote generated. 200 rather than 201 because this service creates
+            and stores nothing: there is no resource, no Location header and
+            nothing to retrieve afterwards.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Quote"
+              example:
+                quoteId: 7c4677e6-b95b-4ee8-bcf5-c17bbda9d63a
+                commissionRate: 0.0180
+                totalCommission: 4500.00
+        "400":
+          description: Validation failed. Every failed field is reported at once.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: VALIDATION_FAILED
+                  message: request failed validation
+                  details:
+                    - field: loanAmount
+                      code: amount_out_of_range
+                    - field: riskBand
+                      code: risk_band_invalid
+                  correlationId: 4b1c9f2e7a3d5c81
+        "401":
+          description: >
+            The caller's identity was not established: no token, or a token that
+            is malformed, expired, wrongly signed, or not addressed to this
+            service. Signing in again may help.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: UNAUTHENTICATED
+                  message: bearer token missing, invalid or expired
+                  correlationId: 4b1c9f2e7a3d5c81
+        "403":
+          description: >
+            The caller is known but not permitted. Either the token did not
+            request `quote:generate`, or the subject has not been granted it.
+            Signing in again will not help.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: FORBIDDEN
+                  message: caller is not entitled to the required scope
+                  correlationId: 4b1c9f2e7a3d5c81
+        "502":
+          description: >
+            The vendor could not produce a quote. This also covers the vendor
+            rejecting our own credential, which is an operational fault on our
+            side and deliberately not reported as the caller's 401.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: UPSTREAM_UNAVAILABLE
+                  message: upstream quote provider unavailable
+                  correlationId: 4b1c9f2e7a3d5c81
+        "504":
+          description: The time budget for the vendor call was exhausted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: UPSTREAM_TIMEOUT
+                  message: upstream quote provider timed out
+                  correlationId: 4b1c9f2e7a3d5c81
+
+  /healthz:
+    get:
+      operationId: health
+      summary: Liveness probe
+      security: []
+      responses:
+        "200":
+          description: Service is up
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                properties:
+                  status:
+                    type: string
+                    const: ok
+                required: [status]
+              example:
+                status: ok
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: >
+        JWT minted by the BFF, signed HS256, `iss` cqapp-bff, `aud`
+        cqapp-middleware, expiring 60 seconds after issue. The algorithm is
+        pinned: any other value, `none` included, is rejected.
+
+        Scopes used by this service: `quote:generate`, required by
+        POST /v1/quotes. A scope in the token is a request, not a grant. This
+        service decides entitlement from its own source.
+
+  parameters:
+    CorrelationId:
+      name: X-Correlation-Id
+      in: header
+      required: false
+      schema:
+        type: string
+        pattern: "^[A-Za-z0-9._-]{1,64}$"
+      description: Echoed on the response and propagated to the vendor.
+    TraceParent:
+      name: traceparent
+      in: header
+      required: false
+      schema:
+        type: string
+      description: W3C trace context, so one request is one trace.
+
+  schemas:
+    QuoteRequest:
+      type: object
+      additionalProperties: false
+      required: [loanAmount, loanTermInMonths, riskBand]
+      properties:
+        loanAmount:
+          type: number
+          minimum: 1000.00
+          maximum: 5000000.00
+          multipleOf: 0.01
+          description: >
+            Loan principal in AUD, a plain decimal with at most two decimal
+            places. Exponent notation and quoted numbers are rejected.
+          examples: [250000.00]
+        loanTermInMonths:
+          type: integer
+          minimum: 6
+          maximum: 360
+          examples: [240]
+        riskBand:
+          type: string
+          enum: [A, B, C]
+          description: Risk classification. A is low, B standard, C elevated.
+          examples: [B]
+
+    Quote:
+      type: object
+      additionalProperties: false
+      required: [quoteId, commissionRate, totalCommission]
+      properties:
+        quoteId:
+          type: string
+          description: >
+            Identifies the quote at the vendor. Nothing is stored here, so it
+            cannot be used to retrieve the quote again.
+        commissionRate:
+          type: number
+          multipleOf: 0.0001
+          description: >
+            Commission rate as a decimal fraction. 0.0180 is 1.80%. Produced by
+            the vendor and passed through unchanged; this service never
+            recomputes it.
+          examples: [0.0180]
+        totalCommission:
+          type: number
+          multipleOf: 0.01
+          description: Commission payable in AUD. Passed through unchanged.
+          examples: [4500.00]
+
+    Error:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message, correlationId]
+          properties:
+            code:
+              type: string
+              description: Stable identifier a client may branch on.
+              enum:
+                - VALIDATION_FAILED
+                - UNAUTHENTICATED
+                - FORBIDDEN
+                - UPSTREAM_UNAVAILABLE
+                - UPSTREAM_CONTRACT
+                - UPSTREAM_TIMEOUT
+                - UPSTREAM_CIRCUIT_OPEN
+                - INTERNAL
+            message:
+              type: string
+              description: >
+                States the condition in API terms: what happened, not what a
+                person should do about it. This service is internal and has no
+                browser, so it does not write UI copy. The BFF maps `code` to
+                user facing wording.
+
+                Never reveals internal detail such as upstream hosts or
+                credentials. Branch on `code`, which is stable; the message may
+                be reworded.
+            details:
+              type: array
+              description: Present only for VALIDATION_FAILED. Every failed field, together.
+              items:
+                type: object
+                additionalProperties: false
+                required: [field, code]
+                properties:
+                  field:
+                    type: string
+                    examples: [loanAmount]
+                  code:
+                    type: string
+                    enum:
+                      - amount_invalid
+                      - amount_precision
+                      - amount_out_of_range
+                      - term_invalid
+                      - term_not_integer
+                      - term_out_of_range
+                      - risk_band_invalid
+                      - malformed_body
+            correlationId:
+              type: string
+              description: Quote this when reporting a problem.

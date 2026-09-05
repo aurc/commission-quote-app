@@ -8,10 +8,10 @@ Statuses: `todo`, `in progress`, `done`.
 |-------|-----------------------------|--------|--------------------------------------------------------|
 | CQ-01 | Design completeness pass    | done   | `design/contract.md`, repaired `design/assumptions.md` |
 | CQ-02 | Scaffold and platform       | done   | `go.mod`, `Makefile`, `internal/platform`              |
-| CQ-03 | Mocked vendor CQAPI         | done   | `cmd/cqapi`, `api/cqapi.openapi.yaml`                  |
-| CQ-04 | Middleware core and OpenAPI | todo   | `cmd/middleware`, `api/middleware.openapi.yaml`        |
+| CQ-03 | Mocked vendor CQAPI         | done   | `cmd/cqapi-mock`, `api/cqapi.openapi.yaml`                  |
+| CQ-04 | Middleware core and OpenAPI | done   | `cmd/cqapp-middleware`, `api/middleware.openapi.yaml`        |
 | CQ-05 | Middleware resilience       | todo   | timeouts, retries, circuit breaker                     |
-| CQ-06 | BFF and AuthProvider        | todo   | `cmd/bff`                                              |
+| CQ-06 | BFF and AuthProvider        | todo   | `cmd/cqapp-bff`                                              |
 | CQ-07 | Web front end               | todo   | `web/`                                                 |
 | CQ-08 | Edge, compose, README       | todo   | `deploy/`, run instructions, AI transparency           |
 
@@ -47,8 +47,10 @@ failures that provably produced no quote.
 
 ### CQ-06 BFF and AuthProvider
 
-`AuthProvider` interface with in memory staff session, session cookie, cookie to bearer exchange,
-proxy to Middleware, UI friendly errors. No business logic, no vendor credential.
+`AuthProvider` interface over `config/staff.csv`, the same fixture the Middleware reads for
+entitlement, so sign in and authorisation cannot disagree about who exists. Session cookie, cookie to
+bearer exchange, proxy to Middleware. Owns user facing error wording, mapping the Middleware's `code`
+to what the browser shows, per `contract.md` section 5. No business logic, no vendor credential.
 
 ### CQ-07 Web front end
 

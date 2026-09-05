@@ -24,8 +24,26 @@ matrix small. Adding bands is a data change, not a code change.
 
 ### Money
 
-AUD only. Amounts are JSON numbers with at most 2 decimal places. Rounding is half up.
-Rates are JSON numbers with 4 decimal places (`0.0125` is 1.25%).
+AUD only. On the wire, amounts are JSON numbers with exactly 2 decimal places and rates JSON numbers
+with exactly 4 (`0.0125` is 1.25%). Input amounts are accepted with at most 2 decimal places.
+
+**Arithmetic is exact, never floating point.** `internal/platform/money` holds amounts and rates as
+`math/big.Rat`. A decimal is a ratio of integers, so a `Rat` represents `0.01` and `250000.00 *
+0.0180` exactly, where `float64` cannot: it gives `4500.000000000001`, and errors of that shape
+accumulate into a number somebody is eventually paid.
+
+Nothing rounds mid calculation. A value is held at full precision until it reaches a boundary, and
+rounding is then one named operation, `RoundHalfUp`, applied once. Half up means a tie goes up, so
+`10.005` renders as `10.01`. Amounts are validated positive before any rounding, so the behaviour of
+a negative tie never arises.
+
+**Boundaries are integers.** Where a value leaves the exact world for JSON, a log line or a store, it
+crosses as whole cents (`int64`) or whole ten thousandths (`int64`), never as a float. `Cents` and
+`TenThousandths` report whether the value fits, because an amount arrives from the network before it
+has been range checked and could be arbitrarily large. Overflow is reported, never wrapped.
+
+Rate cards are integers by nature. `0.0150` is 150 ten thousandths, a whole number of basis points,
+not a measured quantity, so pricing tables are written as integers and converted.
 
 ## 2. Vendor contract (CQAPI)
 
@@ -43,7 +61,12 @@ Response `201`:
 { "quoteId": "b3f1c9e2-...", "commissionRate": 0.0165, "totalCommission": 4125.00 }
 ```
 
-`quoteId` is a UUIDv4 generated per request. Quotes are not stored.
+`quoteId` is a UUIDv4 generated per request.
+
+`201` rather than `200` is deliberate, and is the one place the two contracts differ. The vendor is
+modelled as a system that records the quote it issues: that is exactly why `assumptions.md` 1.4
+assumes generation is not idempotent there, and why a retry risks a duplicate. A system that creates
+something returns `201`. Our own Middleware creates nothing and returns `200`; see section 3.
 
 ### Commission formula
 
@@ -83,12 +106,26 @@ which failed. Comparison is constant time.
 
 ## 3. Middleware contract
 
-`POST /api/v1/quotes`. Published in `api/middleware.openapi.yaml`.
+`POST /v1/quotes`, returning `200`. Published in `api/middleware.openapi.yaml`.
 
 Same request and response bodies as the vendor. The MVP contract deliberately mirrors the vendor;
 divergence is expected later and is the reason the layer exists.
 
 Headers: `Authorization: Bearer <jwt>` (required), `X-Correlation-Id`, `traceparent`.
+
+Two deliberate differences from the vendor contract:
+
+**The path carries no `/api` prefix.** `/api` is the Edge's routing concern, the segment it uses to
+decide browser traffic goes to the BFF rather than to static assets. An internal service that is
+never browser facing should not carry a routing prefix that belongs to a layer two hops away. The
+browser calls `/api/v1/quotes`, the Edge forwards to the BFF, and the BFF calls the Middleware at
+`/v1/quotes`.
+
+**The status is `200`, not `201`.** We create nothing. `assumptions.md` 1.5 and 1.7 state the app is
+stateless with no quote lifecycle, so there is no resource to have created, nothing to put in a
+`Location` header, and nothing to retrieve afterwards. Returning `201` would claim otherwise. The
+Middleware translating the vendor's `201` into our `200` is a small, concrete example of the layer
+doing its job rather than forwarding bytes.
 
 ## 4. Validation
 
@@ -96,12 +133,18 @@ Authoritative in the Middleware. Mirrored in the FE for feedback only. The FE is
 
 | Field              | Rule                                              | Code                 |
 |--------------------|---------------------------------------------------|----------------------|
-| `loanAmount`       | required, number, 1000.00 to 5000000.00 inclusive | `amount_out_of_range`|
+| `loanAmount`       | present, and an unquoted JSON number               | `amount_invalid`     |
 | `loanAmount`       | at most 2 decimal places                          | `amount_precision`   |
-| `loanTermInMonths` | required, integer, 6 to 360 inclusive             | `term_out_of_range`  |
+| `loanAmount`       | 1000.00 to 5000000.00 inclusive                    | `amount_out_of_range`|
+| `loanTermInMonths` | present, and an unquoted JSON number               | `term_invalid`       |
 | `loanTermInMonths` | no fractional part                                | `term_not_integer`   |
+| `loanTermInMonths` | 6 to 360 inclusive                                 | `term_out_of_range`  |
 | `riskBand`         | required, one of `A`, `B`, `C`                    | `risk_band_invalid`  |
-| body               | valid JSON, no unknown fields                     | `malformed_body`     |
+| body               | valid JSON object, no unknown fields               | `malformed_body`     |
+
+`amount_invalid` and `term_invalid` are separate from the range codes because a
+missing field and a quoted `"1000"` are not out of range, and the front end maps
+each code to its own wording. One rule per code.
 
 All failures are collected and returned together, not first failure wins.
 
@@ -126,29 +169,70 @@ Single response shape at every layer:
 
 `message` is always safe to render to a staff user. `details` is present only for validation.
 
-| Failure class                     | Middleware        | Code                      | User message                                          |
-|-----------------------------------|-------------------|---------------------------|-------------------------------------------------------|
-| Validation failed                 | `400`             | `VALIDATION_FAILED`       | Check the highlighted fields.                          |
-| Missing or invalid bearer         | `401`             | `UNAUTHENTICATED`         | Your session has expired. Sign in again.               |
-| Valid caller, missing scope       | `403`             | `FORBIDDEN`               | You do not have access to generate quotes.             |
-| Vendor rejected our `api-key`     | `502`             | `UPSTREAM_UNAVAILABLE`    | Quotes are unavailable right now. Try again shortly.   |
-| Vendor 5xx, retries exhausted     | `502`             | `UPSTREAM_UNAVAILABLE`    | Quotes are unavailable right now. Try again shortly.   |
-| Vendor response unparseable       | `502`             | `UPSTREAM_CONTRACT`       | Quotes are unavailable right now. Try again shortly.   |
-| Timeout or total budget exceeded  | `504`             | `UPSTREAM_TIMEOUT`        | The quote service took too long. Try again.            |
-| Circuit breaker open              | `503` + `Retry-After` | `UPSTREAM_CIRCUIT_OPEN` | Quotes are paused briefly. Try again in a moment.      |
-| Panic or unexpected failure       | `500`             | `INTERNAL`                | Something went wrong. Try again.                       |
+| Failure class                     | Middleware        | Code                      | Middleware message                                       |
+|-----------------------------------|-------------------|---------------------------|----------------------------------------------------------|
+| Validation failed                 | `400`             | `VALIDATION_FAILED`       | request failed validation                                 |
+| Malformed body                    | `400`             | `VALIDATION_FAILED`       | request body could not be parsed                          |
+| Missing or invalid bearer         | `401`             | `UNAUTHENTICATED`         | bearer token missing, invalid or expired                  |
+| Valid caller, not entitled        | `403`             | `FORBIDDEN`               | caller is not entitled to the required scope              |
+| Vendor rejected our `api-key`     | `502`             | `UPSTREAM_UNAVAILABLE`    | upstream quote provider unavailable                       |
+| Vendor 5xx, retries exhausted     | `502`             | `UPSTREAM_UNAVAILABLE`    | upstream quote provider unavailable                       |
+| Vendor response unparseable       | `502`             | `UPSTREAM_CONTRACT`       | upstream quote provider returned an unexpected response   |
+| Vendor rejected our request `400` | `502`             | `UPSTREAM_CONTRACT`       | upstream quote provider returned an unexpected response   |
+| Timeout or total budget exceeded  | `504`             | `UPSTREAM_TIMEOUT`        | upstream quote provider timed out                         |
+| Circuit breaker open              | `503` + `Retry-After` | `UPSTREAM_CIRCUIT_OPEN` | upstream calls suspended by circuit breaker             |
+| Panic or unexpected failure       | `500`             | `INTERNAL`                | internal error                                            |
+
+### Who writes the message
+
+The Middleware states the condition in API terms: what happened, not what a
+person should do about it. It is an internal service with no browser, and a
+message such as "sign in again" is a remedy expressed in terms of a UI that may
+not exist. A batch job calling this service should not be told to sign in.
+
+The **BFF owns user facing wording**, mapping `code` to whatever the front end
+should say. This is the same principle already applied to field errors, where
+`amount_out_of_range` is the contract and the wording is the front end's: the
+code is stable, the prose is presentation. Applying it to the top level message
+too removes an inconsistency, and means tone, phrasing and any future
+localisation change in one place next to the UI rather than in a service two hops
+away.
+
+| Code | Wording the BFF returns to the browser |
+|---|---|
+| `VALIDATION_FAILED` | Check the highlighted fields. |
+| `UNAUTHENTICATED` | Your session has expired. Sign in again. |
+| `FORBIDDEN` | You do not have access to generate quotes. |
+| `UPSTREAM_UNAVAILABLE` | Quotes are unavailable right now. Try again shortly. |
+| `UPSTREAM_CONTRACT` | Quotes are unavailable right now. Try again shortly. |
+| `UPSTREAM_TIMEOUT` | The quote service took too long. Try again. |
+| `UPSTREAM_CIRCUIT_OPEN` | Quotes are paused briefly. Try again in a moment. |
+| `INTERNAL` | Something went wrong. Try again. |
+
+An unrecognised code maps to the `INTERNAL` wording, so a new Middleware code
+never reaches a user as raw API text.
+
+A Middleware message must still be safe to return: no credentials, no hostnames,
+no internal state. That is why the two `502` cases read alike from outside and
+are separated only by their code and by what is logged.
 
 The vendor `api-key` failure maps to `502`, never `401`. A vendor credential problem is our
 operational fault, not the staff user's authentication problem, and conflating them would both
 mislead the user and leak that a credential exists. The real cause is logged at `error` with the key
 masked. This implements `assumptions.md` API Key Handling item 4.
 
+A vendor `400` is not passed through as a `400`. We validated the request and accepted it, and they
+rejected it, which means our validation and theirs have drifted apart. That is our bug, not the
+user's mistake, so it must not be reported to the caller as though they got something wrong. It is
+logged at error level because it means the contract needs attention.
+
 `INTERNAL` was added during CQ-02. Panic recovery has to render something, and without a named class
 it would have invented an envelope outside this table. Any error that is not one of the classes above
 is rendered as `INTERNAL`, so an unexpected error can never leak its text to a caller.
 
-BFF behaviour: pass the Middleware status and body through unchanged, except `401`, which it maps to
-its own session semantics and which triggers a sign in redirect in the FE.
+BFF behaviour: keep the Middleware's status, `code`, `details` and `correlationId`, and replace
+`message` with the wording above. `401` additionally maps to its own session semantics and triggers
+a sign in redirect in the FE.
 
 ## 6. Resilience budgets
 
@@ -215,12 +299,104 @@ Signed JWT, HS256, shared secret `BFF_MIDDLEWARE_SIGNING_KEY`.
 | `iat`   | issued time               |
 | `jti`   | UUIDv4                    |
 
-The Middleware verifies signature, `iss`, `aud`, `exp`, and requires the `quote:generate` scope.
-Short expiry because the token is minted per request and never leaves the mesh.
+The Middleware verifies the signature, `iss`, `aud` and `exp`, accepting exactly one algorithm.
+`alg` is pinned to HS256 and every other value is rejected, `none` included: a verifier that trusts
+the header's choice of algorithm can be handed an unsigned token, or an HMAC token verified with a
+public key it thought was for RSA.
 
-Production replacement, documented not built: the IdP issues the staff token, the BFF validates it,
-and the Middleware validates the same token or a mesh issued workload identity. The shared secret
-disappears.
+Short expiry because the token is minted per request and never leaves the mesh. A few seconds of
+clock skew leeway is allowed, since two containers need not agree to the millisecond.
+
+### Authorisation is not the same as authentication
+
+A verified signature proves the token came from a holder of the secret. It does not establish that
+the subject may generate quotes.
+
+The `scope` claim is the caller **asking** to do something. It is not a grant. The BFF writes it, and
+the BFF is the party being checked, so treating it as a grant would make the check circular: the BFF
+would decide its own authority and the Middleware would confirm the BFF's opinion of itself. The
+`403` branch could never be reached.
+
+The Middleware therefore owns the decision, through an `Entitlements` port alongside the existing
+`AuthProvider` and `SecretProvider` seams:
+
+```go
+type Entitlements interface {
+    Granted(ctx context.Context, subject string) ([]string, error)
+}
+```
+
+A request is authorised only when **both** hold:
+
+1. the token is valid and requests `quote:generate` in its `scope` claim, and
+2. the Middleware's own `Entitlements` source grants `quote:generate` to that `sub`.
+
+| Outcome | Response |
+|---|---|
+| No token, malformed, expired, bad signature, wrong `iss` or `aud`, wrong `alg` | `401 UNAUTHENTICATED` |
+| Valid token, scope not requested | `403 FORBIDDEN` |
+| Valid token, scope requested, subject not granted it | `403 FORBIDDEN` |
+| Valid token, scope requested and granted | proceed |
+
+MVP implementation: `config/staff.csv`, read through `internal/platform/staffdir`. It carries at
+least one entitled and one unentitled staff member, so the `403` path is real and testable rather
+than theoretical. This satisfies `assumptions.md` FR4, which assumes pre configured access without
+saying who holds it.
+
+### One fixture, two production systems
+
+The BFF reads the same file for identity and the Middleware reads it for entitlement, taking
+different columns:
+
+```
+id,name,scopes
+staff-001,Alex Turner,quote:generate
+staff-002,Sam Ellis,
+```
+
+That sharing is a property of the fixture, not of the design. In production these are two systems:
+the IdP holds identity, the directory or policy service holds entitlement, and neither component
+reads the other's source. They share a file here because the alternative, two hand edited lists that
+must agree, produces a confusing and easily introduced failure: a staff member who signs in
+successfully and is then refused every quote.
+
+`scopes` is semicolon separated and may be empty. An empty column is deliberate and is the only way
+the `403` path gets exercised. A duplicate `id` is rejected at startup, since it would silently
+shadow one row's scopes.
+
+Production: the same interface backed by group membership from the directory, or a policy decision
+point. The interface is the seam; the source changes, the Middleware does not.
+
+### Required scopes are published
+
+The Middleware's OpenAPI file states the scope each operation requires, so a consumer learns it from
+the contract rather than from a `403`. `POST /v1/quotes` requires `quote:generate`, declared on the
+operation and described on the security scheme, and `403` is a documented response.
+
+The scheme is `http` `bearer` with `bearerFormat: JWT`, because that is what the transport actually
+is. An `oauth2` scheme would carry scopes natively, but it would also have to name a token endpoint,
+and there is no such endpoint in the MVP: the BFF mints the token itself. Inventing a `tokenUrl` to
+satisfy the schema would put a fiction in a published contract. When the IdP arrives the scheme
+becomes `openIdConnect` against real discovery, and the declared scopes carry over unchanged.
+
+### Stated limitations
+
+**HS256 is symmetric, so there is no non repudiation.** The Middleware can prove a token was minted
+by a holder of `BFF_MIDDLEWARE_SIGNING_KEY`. It cannot prove the holder was the BFF. Any component
+with the secret, the Middleware included, can mint a token the Middleware will accept. This is
+acceptable only because the secret lives in one place and never leaves the mesh.
+
+Production removes the property rather than mitigating it: the BFF signs with a private key and the
+Middleware holds only the public half, or both validate an IdP issued token against JWKS. Either way
+the Middleware loses the ability to mint what it verifies.
+
+**`jti` is carried but not enforced.** It is logged for correlation and is the hook a replay cache
+would use. With a 60 second expiry on a token that never leaves the mesh, a replay window that small
+did not justify the state in the MVP. Tracked as depth, not forgotten.
+
+**The staff session itself is fake.** `AuthProvider` returns a seeded in memory user. Everything
+above describes how the Middleware treats the claims it is given, not how those claims come to be
+trustworthy in the first place; that is the IdP's job and is documented, not built.
 
 ## 8. Observability
 
@@ -230,13 +406,14 @@ disappears.
 | Trace context  | W3C `traceparent`, propagated on every hop, spans on inbound and outbound |
 | Log format     | JSON, one line per event                                                  |
 | Log fields     | `ts`, `level`, `msg`, `component`, `method`, `line`, `correlationId`, `traceId`, `spanId` |
+| Attribution    | Quote requests also log `staffId`, the token's `sub`, and `jti`. An action a bank cares about should be attributable to someone |
 | Echoed         | `correlationId` appears in every error body so a user can quote it        |
 
 Never logged: the `api-key` value, bearer tokens, cookie values. The key is logged masked as
 `****<last 4>` so an operator can identify which key is loaded without recovering it.
 
 Logged: `loanAmount`, `loanTermInMonths`, `riskBand`. Business data, not PII, per `assumptions.md`
-2.2.
+2.2. Also `staffId`, which is an internal subject identifier, never a name or an email address.
 
 An inbound `X-Correlation-Id` is attacker controlled, so it is accepted only when it matches
 `[A-Za-z0-9._-]{1,64}`. A value outside that is discarded and replaced, not trimmed: a truncated id
@@ -252,14 +429,23 @@ accepts a malformed endpoint and silently drops every trace.
 | Env var                      | Components            | Default                    | Required |
 |------------------------------|-----------------------|----------------------------|----------|
 | `CQAPI_API_KEY`              | middleware, cqapi     | none                       | yes      |
-| `CQAPI_BASE_URL`             | middleware            | `http://cqapi:8083`        | no       |
-| `MIDDLEWARE_BASE_URL`        | bff                   | `http://middleware:8082`   | no       |
+| `CQAPI_BASE_URL`             | middleware            | `http://cqapi-mock:8083`   | no       |
+| `MIDDLEWARE_BASE_URL`        | bff                   | `http://cqapp-middleware:8082` | no   |
 | `BFF_MIDDLEWARE_SIGNING_KEY` | bff, middleware       | none                       | yes      |
+| `STAFF_FILE`                 | middleware, bff       | `config/staff.csv`         | no       |
 | `PORT`                       | all                   | per component below        | no       |
 | `LOG_LEVEL`                  | all                   | `info`                     | no       |
 | `OTEL_EXPORTER_OTLP_ENDPOINT`| all                   | unset                      | no       |
 
-Startup fails fast and loudly if a required secret is absent.
+Defaults are the docker compose service names. Running natively, `make env`
+writes a `.env` from the committed `.env.example`, which points everything at
+localhost; the Makefile loads it. `.env` is gitignored, so a real value never
+reaches the repository.
+
+Startup fails fast and loudly if a required secret is absent, and
+`BFF_MIDDLEWARE_SIGNING_KEY` must be at least 32 bytes: an HS256 key shorter
+than the digest it produces weakens the signature, and a short key is exactly
+what someone picks when inventing one by hand.
 
 | Component  | Port   | Reachable from the browser |
 |------------|--------|----------------------------|
@@ -268,7 +454,27 @@ Startup fails fast and loudly if a required secret is absent.
 | middleware | `8082` | no                         |
 | cqapi      | `8083` | no                         |
 
-## 10. Testing strategy
+## 10. Front end contract
+
+The brief specifies parts of the UI literally, so they are pinned here rather than left to CQ-07.
+
+| Element | Requirement |
+|---|---|
+| Form fields | `loanAmount`, `loanTermInMonths`, `riskBand` |
+| Submit control | A button labelled **Generate Quote** |
+| Success | A display area showing `quoteId`, `commissionRate` and `totalCommission` |
+| In flight | A visible loading state; the submit control is disabled while a request is open |
+| Failure | The `message` from the BFF's error envelope, shown as an error, with `correlationId` available |
+| Field errors | `details` mapped back to the field that failed, shown inline |
+
+Presentation: `commissionRate` is shown as a percentage to two decimal places (`0.0180` renders as
+`1.80%`), `totalCommission` as AUD currency. The FE formats for display only; it never recomputes a
+figure the vendor produced.
+
+Validation in the FE mirrors section 4 for immediate feedback and is never trusted. The Middleware
+rejects independently, and the FE renders whatever it sends back.
+
+## 11. Testing strategy
 
 `assumptions.md` does not mention testing; the challenge grades it. Filling that gap here.
 

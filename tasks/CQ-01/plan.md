@@ -37,7 +37,7 @@ app; and the commit and PR history reads as a deliberate, documented sequence of
 ```
 go.mod
 api/openapi.yaml          Middleware published contract
-cmd/{bff,middleware,cqapi}/main.go
+cmd/{cqapp-bff,cqapp-middleware,cqapi-mock}/main.go
 internal/
   platform/               log, config, otel, secrets, http helpers
   bff/  middleware/  cqapi/
@@ -90,13 +90,13 @@ every later component is observable from birth rather than retrofitted.
 
 ### CQ-03 — Mocked vendor CQAPI
 
-`cmd/cqapi`. Vendor contract per `contract.md`; `api-key` enforcement rejecting missing and wrong
+`cmd/cqapi-mock`. Vendor contract per `contract.md`; `api-key` enforcement rejecting missing and wrong
 keys identically; configurable random failure and latency injection with a seedable source so tests
 are deterministic; commission calculation. Tests: auth rejection, happy path, injected failure.
 
 ### CQ-04 — Middleware core and OpenAPI
 
-`cmd/middleware`, `api/openapi.yaml`. Authoritative validation, caller-claim verification, vendor
+`cmd/cqapp-middleware`, `api/openapi.yaml`. Authoritative validation, caller-claim verification, vendor
 client attaching `api-key`, error mapping that never leaks vendor auth failures to the caller while
 logging the real cause. Tests: validation table, claim rejection, vendor-401 mapping, contract test
 asserting handlers match the spec.
@@ -109,7 +109,7 @@ fake vendor: timeout, retry-then-succeed, no-retry-on-4xx, breaker opens and rec
 
 ### CQ-06 — BFF and AuthProvider
 
-`cmd/bff`. `AuthProvider` interface with the fake in-memory staff session, session cookie handling,
+`cmd/cqapp-bff`. `AuthProvider` interface with the fake in-memory staff session, session cookie handling,
 cookie→bearer exchange, proxy to Middleware, UI-friendly error mapping. Holds no business logic and
 no vendor credential. Tests: unauthenticated rejection, cookie exchange, error translation.
 
