@@ -61,4 +61,7 @@ Bendigo mark, and every error artboard shows a correlation id.
 
 ## Canvas
 
-Published at: _to be recorded once the canvas is created_
+Published at: https://claude.ai/code/artifact/3f6b2b9b-de87-476d-94d7-66fd355e832b
+
+Sources are kept in `design/canvas/` so the canvas can be rebuilt or amended without starting over.
+`Main.dc.html` is the quote result, the state the application exists to reach.
