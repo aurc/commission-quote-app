@@ -1,0 +1,426 @@
+@import './tokens.css';
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--cq-surface-tint);
+  color: var(--cq-text);
+  font-family: var(--cq-font);
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+a {
+  color: var(--cq-primary);
+}
+a:hover {
+  color: var(--cq-primary-dark);
+}
+
+:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgb(222 49 59 / 45%);
+}
+
+/* Layout */
+
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.bar {
+  height: 64px;
+  padding: var(--cq-bar-pad);
+  background: var(--cq-primary);
+  color: var(--cq-on-primary);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.bar__brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.bar__staff {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 14px;
+  color: rgb(255 255 255 / 85%);
+}
+
+/* The bar has room for the wordmark and one control. Sign out is the one you
+   cannot reach any other way, so the name moves into the form below. */
+@media (max-width: 560px) {
+  .bar__staff-name {
+    display: none;
+  }
+}
+
+.page {
+  flex-grow: 1;
+  padding: var(--cq-page-pad);
+  display: flex;
+  justify-content: center;
+}
+
+.column {
+  width: 100%;
+  max-width: 560px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.column--narrow {
+  max-width: 440px;
+}
+
+/* Surfaces */
+
+.card {
+  background: var(--cq-surface);
+  border: 1px solid var(--cq-border);
+  border-radius: var(--cq-radius-card);
+  padding: var(--cq-card-pad);
+}
+
+.card--tint {
+  background: var(--cq-surface-tint);
+}
+
+.card__title {
+  margin: 0 0 4px;
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.card__lede {
+  margin: 0 0 20px;
+  font-size: 15px;
+  color: var(--cq-text-muted);
+}
+
+@media (max-width: 560px) {
+  .card__title {
+    font-size: 20px;
+  }
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cq-gap);
+}
+
+/* Fields */
+
+.field__label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+
+.field__control {
+  position: relative;
+}
+
+.field__prefix {
+  position: absolute;
+  left: 12px;
+  top: 11px;
+  color: var(--cq-text-muted);
+  pointer-events: none;
+}
+
+.field__input,
+.field__select {
+  width: 100%;
+  height: var(--cq-control-height);
+  padding: 0 12px;
+  border: 1px solid var(--cq-border);
+  border-radius: var(--cq-radius);
+  background: var(--cq-surface);
+  color: var(--cq-text);
+  font: inherit;
+}
+
+.field__input--prefixed {
+  padding-left: 30px;
+}
+
+.field__select {
+  appearance: none;
+  padding-right: 36px;
+}
+
+.field__chevron {
+  position: absolute;
+  right: 14px;
+  top: 15px;
+  pointer-events: none;
+  color: var(--cq-text-muted);
+}
+
+.field__input[aria-invalid='true'],
+.field__select[aria-invalid='true'] {
+  border: 2px solid var(--cq-danger);
+}
+
+.field__hint {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--cq-text-muted);
+  margin-top: 6px;
+}
+
+.field__error {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--cq-danger);
+  margin-top: 6px;
+}
+
+/* Buttons */
+
+.btn {
+  height: 48px;
+  padding: 0 24px;
+  border: none;
+  border-radius: var(--cq-radius);
+  background: var(--cq-primary);
+  color: var(--cq-on-primary);
+  font: 600 16px var(--cq-font);
+  cursor: pointer;
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--cq-primary-dark);
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.btn--block {
+  width: 100%;
+}
+
+.btn--quiet {
+  height: var(--cq-control-height);
+  padding: 0 18px;
+  border: 1px solid var(--cq-primary);
+  background: var(--cq-surface);
+  color: var(--cq-primary);
+  font-size: 15px;
+}
+
+.btn--quiet:hover:not(:disabled) {
+  background: var(--cq-surface-tint);
+  color: var(--cq-primary);
+}
+
+.btn--on-primary {
+  height: 36px;
+  padding: 0 14px;
+  border: 1px solid rgb(255 255 255 / 40%);
+  background: transparent;
+  color: var(--cq-on-primary);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.btn__spinner {
+  animation: cq-spin 0.9s linear infinite;
+}
+
+@keyframes cq-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn__spinner {
+    animation: none;
+  }
+}
+
+/* Banners: a refused sign in, failed validation and an unreachable vendor all
+   take this shape, inside the card and above the fields. */
+
+.banner {
+  display: flex;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: var(--cq-radius);
+}
+
+.banner--danger {
+  border: 1px solid var(--cq-danger);
+  background: var(--cq-surface);
+}
+
+/* Not the user's doing and not theirs to fix, so it does not shout. */
+.banner--notice {
+  border: 1px solid var(--cq-border);
+  background: var(--cq-surface-tint);
+}
+
+.banner__title {
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.banner--danger .banner__title {
+  color: var(--cq-danger);
+}
+
+.banner__detail {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--cq-text-muted);
+  margin-top: 4px;
+}
+
+.banner__list {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.banner__list a {
+  color: var(--cq-danger);
+}
+
+/* Result */
+
+.result__heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 18px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.result__figures {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+@media (max-width: 560px) {
+  .result__figures {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.result__label {
+  font-size: 13px;
+  color: var(--cq-text-muted);
+  margin-bottom: 4px;
+}
+
+.result__figure {
+  font-size: 32px;
+  font-weight: 600;
+  color: var(--cq-primary);
+  line-height: 1.1;
+}
+
+@media (max-width: 560px) {
+  .result__figure {
+    font-size: 26px;
+  }
+}
+
+.result__id {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--cq-border);
+}
+
+.result__note {
+  margin: 16px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--cq-text-muted);
+}
+
+.mono {
+  font-family: var(--cq-font-mono);
+  font-size: 14px;
+  word-break: break-all;
+}
+
+/* Summary of a submitted form */
+
+.summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.summary__signed-in {
+  font-size: 13px;
+  color: var(--cq-text-muted);
+  margin-bottom: 10px;
+}
+
+@media (min-width: 561px) {
+  .summary__signed-in {
+    display: none;
+  }
+}
+
+.summary__value {
+  font-size: 15px;
+  font-weight: 500;
+}
+
+/* Reference line under any failure */
+
+.reference {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: var(--cq-text-muted);
+  margin-top: 10px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}

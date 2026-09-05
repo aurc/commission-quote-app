@@ -34,8 +34,12 @@ build: ## Build every service into bin/
 	done
 
 .PHONY: test
-test: ## Run tests with the race detector
+test: ## Run Go tests with the race detector
 	$(GO) test -race ./...
+
+.PHONY: test-web
+test-web: ## Run front end tests
+	@cd web && npm test --silent
 
 .PHONY: cover
 cover: ## Report test coverage per package
@@ -63,11 +67,11 @@ tidy: ## Tidy module requirements
 	$(GO) mod tidy
 
 .PHONY: check
-check: fmt vet test ## Format, vet and test. Run before opening a PR
+check: fmt vet test test-web ## Format, vet and test everything. Run before opening a PR
 
 .PHONY: clean
 clean: ## Remove build output
-	rm -rf $(BIN)
+	rm -rf $(BIN) web/dist
 
 # Native dev. One target per cmd/ entry, named after it. The reviewer path is
 # docker compose, added in CQ-08.
@@ -87,10 +91,12 @@ dev-staff: ## Add a staff member to the fixtures, prompting for a password
 dev-token: ## Print a bearer token, to call the middleware without the BFF
 	@$(RUN_ENV) $(GO) run ./cmd/devtoken $(ARGS)
 
-.PHONY: run-cqapi-mock run-cqapp-middleware run-cqapp-bff
+.PHONY: run-cqapi-mock run-cqapp-middleware run-cqapp-bff run-cqapp-web
 run-cqapi-mock: ## Run the vendor mock, port 8083
 	@$(RUN_ENV) $(GO) run ./cmd/cqapi-mock
 run-cqapp-middleware: ## Run the middleware, port 8082
 	@$(RUN_ENV) $(GO) run ./cmd/cqapp-middleware
 run-cqapp-bff: ## Run the BFF, port 8081
 	@$(RUN_ENV) $(GO) run ./cmd/cqapp-bff
+run-cqapp-web: ## Run the front end, port 5173
+	@cd web && npm run dev

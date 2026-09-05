@@ -4,21 +4,24 @@ Full-stack take-home: a web app that captures loan details and returns a commiss
 mocked external vendor API.
 
 <p align="center">
-  <img src="design/screenshots/quote-result.png" alt="The result: a 1.80% commission rate and a total of $4,500.00, below the form collapsed in place to the values it was submitted with" width="760">
+  <img src="design/screenshots/desktop-form.png" alt="The quote form: loan amount, term in months and risk band, with a Generate Quote button" width="420">
+  <img src="design/screenshots/desktop-result.png" alt="The result: a 1.80% commission rate and a total of $4,500.00, with the form collapsed above to the values it was submitted with" width="420">
 </p>
 
 <p align="center">
-  <img src="design/screenshots/validation-errors.png" alt="The quote form showing every invalid field at once, each marked inline with an icon and a message" width="380">
-  <img src="design/screenshots/phone-result.png" alt="The same result on a 390px phone, entirely above the fold" width="176">
-  <img src="design/screenshots/phone-validation.png" alt="Validation errors on a phone" width="176">
+  <img src="design/screenshots/phone-signin.png" alt="Sign in on a phone" width="200">
+  <img src="design/screenshots/phone-form.png" alt="The quote form on a phone" width="200">
+  <img src="design/screenshots/phone-validation.png" alt="Validation on a phone: every failed field marked at once, with a summary linking to each" width="200">
+  <img src="design/screenshots/phone-result.png" alt="The result on a phone, entirely above the fold" width="200">
 </p>
 
-> **These are design mockups, not the running application.** The API works end to end today; the
-> front end is CQ-07, and these are replaced with real screenshots when it ships. The full canvas,
-> seventeen artboards covering every state on desk and phone, is [the design handoff](tasks/CQ-07.1/plan.md).
+> Screenshots of the running application, taken end to end through the real stack: a real session, a
+> real quote from the mocked vendor, real quote identifiers. Every state is drawn in the
+> [design canvas](tasks/CQ-07.1/plan.md) first, seventeen artboards on desk and phone, with the
+> [tokens](design/screenshots/design-tokens.png) and their measured contrast ratios.
 
-> Status: implementation in progress. The API is complete; the front end is next. The single
-> `docker compose up` path lands with CQ-08; native development works today.
+> Status: the API and the front end work end to end. The single `docker compose up` path lands with
+> CQ-08; native development works today.
 
 | Built                                                    | Not yet                                         |
 |----------------------------------------------------------|-------------------------------------------------|
@@ -67,7 +70,7 @@ internal/
   cqappbff/         -> cmd/cqapp-bff
   cqappmiddleware/  -> cmd/cqapp-middleware
   cqapimock/        -> cmd/cqapi-mock
-web/          React SPA                                    (CQ-07)
+web/          React SPA: components, one stylesheet, tokens
 deploy/       nginx, Dockerfiles, docker compose            (CQ-08)
 config/       staff.csv and credentials.csv, the identity fixtures
 design/       assumptions, contract, diagram
@@ -99,7 +102,8 @@ A full account of how AI was used lands with CQ-08.
 
 ## Getting started
 
-Requires Go 1.26. No other tooling; `golangci-lint` is used if installed and skipped if not.
+Requires Go 1.26 and Node 22 or newer. Nothing else; `golangci-lint` is used if installed and
+skipped if not.
 
 ```sh
 make env     # writes .env from .env.example, development values only
@@ -110,18 +114,22 @@ comes from the secret manager through the same `SecretProvider` interface.
 
 ### Running
 
-Two terminals, or background them:
+Four terminals, or background them:
 
 ```sh
 make run-cqapi-mock          # vendor stand in, port 8083
 make run-cqapp-middleware    # middleware,      port 8082
 make run-cqapp-bff           # bff,             port 8081
+make run-cqapp-web           # front end,       port 5173
 ```
 
-### Making a request
+Then open http://localhost:5173 and sign in as `staff-001` with `demo-password`. The Vite dev server
+proxies `/api` to the BFF, standing in for the Edge until CQ-08.
 
-Sign in, then ask for a quote. The development password for every fixture row is `demo-password`,
-stated in [config/credentials.csv](config/credentials.csv).
+### Or drive the API directly
+
+The development password for every fixture row is `demo-password`, stated in
+[config/credentials.csv](config/credentials.csv).
 
 ```sh
 curl -s -c jar localhost:8081/api/session \
@@ -171,10 +179,11 @@ in `.env` to stop it entirely.
 ## Testing
 
 ```sh
-make test     # go test -race ./...
-make cover    # coverage per package
-make lint     # go vet, then golangci-lint if installed
-make check    # fmt, vet and test. Run this before opening a PR
+make test      # go test -race ./...
+make test-web  # front end tests
+make cover     # coverage per package
+make lint      # go vet, then golangci-lint if installed
+make check     # fmt, vet and both suites. Run this before opening a PR
 ```
 
 Tests use `httptest` fakes and never touch the network, so they do not need either service running.
