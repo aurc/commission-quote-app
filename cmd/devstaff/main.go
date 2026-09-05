@@ -9,8 +9,8 @@
 // machine, which is a bad habit to demonstrate even for a fixture. Piping a
 // password in still works, so the tool remains scriptable.
 //
-//	make staff ARGS='-id staff-004 -name "Jane Doe"'
-//	echo hunter2 | make staff ARGS='-id staff-005 -name "Sam" -scopes ""'
+//	make dev-staff ARGS='-id staff-004 -name "Jane Doe"'
+//	echo hunter2 | make dev-staff ARGS='-id staff-005 -name "Sam" -scopes ""'
 package main
 
 import (

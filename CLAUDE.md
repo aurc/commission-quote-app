@@ -21,13 +21,16 @@ Go 1.26, single module. `golangci-lint` is used if installed and skipped if not.
 | `make test` | Tests with the race detector |
 | `go test ./internal/cqappmiddleware/ -run TestAuthenticationFailuresAre401` | A single test |
 | `make cover` | Coverage per package |
-| `make env` | Create `.env` from `.env.example`, needed before any `run-` target |
-| `make run-cqapi-mock`, `make run-middleware` | Run one service natively |
-| `make token` | Development bearer token, for calling the Middleware without the BFF |
-| `make staff ARGS='-id staff-004 -name "Jane Doe"'` | Add a staff member, prompting for a password |
+| `make env` | Create `.env` from `.env.example`, needed before any `run-` or `dev-` target |
+| `make run-cqapi-mock`, `make run-cqapp-middleware`, `make run-cqapp-bff` | Run one service natively |
+| `make dev-token` | Development bearer token, for calling the Middleware without the BFF |
+| `make dev-staff ARGS='-id staff-004 -name "Jane Doe"'` | Add a staff member, prompting for a password |
 | `make build` | Build into `bin/` |
 
-`.env` loads only into `run-` and `token`, never into `make test`. Tests must not depend on a
+Make targets are named after what they act on, so `cmd/cqapp-bff` is `make run-cqapp-bff`, and
+development only tools carry a `dev-` prefix.
+
+`.env` loads only into `run-` and `dev-` targets, never into `make test`. Tests must not depend on a
 developer's environment; keep them hermetic in their own right, not because the Makefile is careful.
 
 Ports: edge 8080, bff 8081, middleware 8082, cqapi-mock 8083.

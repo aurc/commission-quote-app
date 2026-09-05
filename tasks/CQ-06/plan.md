@@ -2,7 +2,7 @@
 
 ## Context
 
-Nothing a browser can talk to exists yet. The Middleware needs a bearer token, and `make token`
+Nothing a browser can talk to exists yet. The Middleware needs a bearer token, and `make dev-token`
 mints one only because there is no BFF; that is the tool this task replaces.
 
 The BFF is where web semantics stop. It owns the staff session, exchanges a cookie for a bearer
@@ -133,7 +133,7 @@ in `contract.md` instead. Worth revisiting the moment anything else calls it.
 
 ## Verification
 
-`make check` green. Then the whole stack by hand without `make token`: sign in with the password,
+`make check` green. Then the whole stack by hand without `make dev-token`: sign in with the password,
 request a quote, sign out, and confirm a quote is refused afterwards. Confirm a wrong password is
 refused and is indistinguishable from an unknown user. Confirm an entitled and an unentitled staff
 member differ, and that the unentitled one sees words rather than `caller is not entitled to the

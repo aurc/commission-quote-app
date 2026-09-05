@@ -13,9 +13,9 @@
 // BFF_MIDDLEWARE_SIGNING_KEY the Middleware verifies with, so anyone who can run
 // it already holds the key.
 //
-//	make token                            # the first entitled staff member
-//	make token ARGS='-sub <id>'           # any id from config/staff.csv
-//	make token ARGS='-scope ""'           # a token that does not request the scope
+//	make dev-token                            # the first entitled staff member
+//	make dev-token ARGS='-sub <id>'           # any id from config/staff.csv
+//	make dev-token ARGS='-scope ""'           # a token that does not request the scope
 package main
 
 import (

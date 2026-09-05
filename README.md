@@ -83,9 +83,9 @@ comes from the secret manager through the same `SecretProvider` interface.
 Two terminals, or background them:
 
 ```sh
-make run-cqapi-mock    # vendor stand in, port 8083
-make run-middleware    # middleware,      port 8082
-make run-bff           # bff,             port 8081
+make run-cqapi-mock          # vendor stand in, port 8083
+make run-cqapp-middleware    # middleware,      port 8082
+make run-cqapp-bff           # bff,             port 8081
 ```
 
 ### Making a request
@@ -107,7 +107,7 @@ curl -s -b jar localhost:8081/api/v1/quotes \
 
 Staff are listed in [config/staff.csv](config/staff.csv), which stands in for the identity provider,
 and their credentials in [config/credentials.csv](config/credentials.csv), which only the BFF reads.
-`make staff ARGS='-id staff-004 -name "Jane Doe"'` adds a member, prompting for a password and
+`make dev-staff ARGS='-id staff-004 -name "Jane Doe"'` adds a member, prompting for a password and
 hashing it.
 
 Things worth trying:
@@ -132,7 +132,7 @@ The vendor mock fails 15% of requests and stalls another 10% past the Middleware
 the challenge asks it to misbehave. The Middleware absorbs most of that; set `CQAPI_FAILURE_RATE=0`
 in `.env` to stop it entirely.
 
-`make token` still mints a bearer for calling the Middleware directly on port 8082, without the BFF.
+`make dev-token` still mints a bearer for calling the Middleware directly on port 8082, without the BFF.
 
 ## Testing
 
@@ -153,11 +153,15 @@ developer's environment is worse than no test.
 make help
 ```
 
+Every target is named after the thing it acts on, so `cmd/cqapp-bff` is `make run-cqapp-bff`.
+Development only tools carry a `dev-` prefix.
+
 | Target | Does |
 |---|---|
 | `env` | Create `.env` from `.env.example` |
-| `run-cqapi-mock`, `run-middleware`, `run-bff` | Run one service natively |
-| `token` | Print a development bearer token |
+| `run-cqapi-mock`, `run-cqapp-middleware`, `run-cqapp-bff` | Run one service natively |
+| `dev-staff` | Add a staff member, prompting for a password |
+| `dev-token` | Print a bearer token, to call the middleware without the BFF |
 | `build` | Build every service into `bin/` |
 | `test`, `cover`, `vet`, `lint`, `check` | See above |
 | `fmt`, `tidy`, `clean` | Housekeeping |
