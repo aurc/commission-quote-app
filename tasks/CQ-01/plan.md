@@ -23,14 +23,14 @@ app; and the commit and PR history reads as a deliberate, documented sequence of
 
 ## Decisions taken
 
-| Decision | Choice |
-|---|---|
-| Go layout | Single module at root, `cmd/<binary>`, shared code in `internal/platform` |
-| Run story | `docker compose up` as the reviewer path; Makefile targets for native dev |
-| OpenAPI | Hand-written `api/openapi.yaml` as the published contract, hand-written handlers |
-| Design docs | Repair `design/assumptions.md`; add `design/contract.md` for testable detail |
+| Decision     | Choice                                                                                    |
+|--------------|-------------------------------------------------------------------------------------------|
+| Go layout    | Single module at root, `cmd/<binary>`, shared code in `internal/platform`                 |
+| Run story    | `docker compose up` as the reviewer path; Makefile targets for native dev                 |
+| OpenAPI      | Hand-written `api/openapi.yaml` as the published contract, hand-written handlers          |
+| Design docs  | Repair `design/assumptions.md`; add `design/contract.md` for testable detail              |
 | Scope stance | Tier every scope item (core / depth / documented-only); recommend, never cut unilaterally |
-| Granularity | 8 tasks, one PR each |
+| Granularity  | 8 tasks, one PR each                                                                      |
 
 ## Target layout
 
@@ -59,26 +59,26 @@ populated `tasks/register.md`.
 
 Gaps to close, each already identified by reading `assumptions.md` against the brief:
 
-| Gap | Why it blocks implementation |
-|---|---|
-| `assumptions.md` cites a *Resilience Budgets* section that does not exist | Retry/timeout/breaker values are undefined |
-| Scope table promises a "production step" column; only the MVP column exists | The build/document split is unstated |
-| No commission formula | CQAPI cannot be written |
-| No `riskBand` domain | No FE control, no validation on either side |
-| No validation rules (amount range/precision, term bounds) | The brief grades invalid-number handling |
-| No error taxonomy or error response shape | Every layer's failure path is guesswork |
-| BFF→Middleware bearer exchange unspecified | Token contents and Middleware verification undefined |
-| Correlation-id header name and OTel trace-id relationship | Cross-service propagation cannot be implemented |
-| No testing strategy | "Include core tests" is a graded must-have |
-| CQAPI failure/latency injection rates, env var names, ports | Needed for compose and deterministic tests |
-| "Retry only where no quote was returned" not operationalised | Needs an explicit retryable-condition rule |
+| Gap                                                                         | Why it blocks implementation                         |
+|-----------------------------------------------------------------------------|------------------------------------------------------|
+| `assumptions.md` cites a *Resilience Budgets* section that does not exist   | Retry/timeout/breaker values are undefined           |
+| Scope table promises a "production step" column; only the MVP column exists | The build/document split is unstated                 |
+| No commission formula                                                       | CQAPI cannot be written                              |
+| No `riskBand` domain                                                        | No FE control, no validation on either side          |
+| No validation rules (amount range/precision, term bounds)                   | The brief grades invalid-number handling             |
+| No error taxonomy or error response shape                                   | Every layer's failure path is guesswork              |
+| BFF→Middleware bearer exchange unspecified                                  | Token contents and Middleware verification undefined |
+| Correlation-id header name and OTel trace-id relationship                   | Cross-service propagation cannot be implemented      |
+| No testing strategy                                                         | "Include core tests" is a graded must-have           |
+| CQAPI failure/latency injection rates, env var names, ports                 | Needed for compose and deterministic tests           |
+| "Retry only where no quote was returned" not operationalised                | Needs an explicit retryable-condition rule           |
 
 `contract.md` carries: request/response schemas, validation rules, the commission formula, the
 error taxonomy with failure-class → status → user message mapping, resilience budgets, the
 observability contract, and the config/env matrix.
 
-Every scope item gets a tier — **core** (must ship), **depth** (ship if time holds), or
-**documented-only** (specified, not built) — with a recommendation where something looks
+Every scope item gets a tier — **core** (must ship), **depth** (ship if time holds), or **documented-only** (specified,
+not built) — with a recommendation where something looks
 over-built for the timebox. Nothing is removed without sign-off.
 
 ### CQ-02 — Scaffold and platform package

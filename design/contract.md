@@ -136,11 +136,16 @@ Single response shape at every layer:
 | Vendor response unparseable       | `502`             | `UPSTREAM_CONTRACT`       | Quotes are unavailable right now. Try again shortly.   |
 | Timeout or total budget exceeded  | `504`             | `UPSTREAM_TIMEOUT`        | The quote service took too long. Try again.            |
 | Circuit breaker open              | `503` + `Retry-After` | `UPSTREAM_CIRCUIT_OPEN` | Quotes are paused briefly. Try again in a moment.      |
+| Panic or unexpected failure       | `500`             | `INTERNAL`                | Something went wrong. Try again.                       |
 
 The vendor `api-key` failure maps to `502`, never `401`. A vendor credential problem is our
 operational fault, not the staff user's authentication problem, and conflating them would both
 mislead the user and leak that a credential exists. The real cause is logged at `error` with the key
 masked. This implements `assumptions.md` API Key Handling item 4.
+
+`INTERNAL` was added during CQ-02. Panic recovery has to render something, and without a named class
+it would have invented an envelope outside this table. Any error that is not one of the classes above
+is rendered as `INTERNAL`, so an unexpected error can never leak its text to a caller.
 
 BFF behaviour: pass the Middleware status and body through unchanged, except `401`, which it maps to
 its own session semantics and which triggers a sign in redirect in the FE.
@@ -221,7 +226,7 @@ disappears.
 
 | Concern        | Decision                                                                 |
 |----------------|--------------------------------------------------------------------------|
-| Correlation id | Header `X-Correlation-Id`. Generated at the BFF if absent. Set to the trace id when a trace is active so logs and traces join on one value. |
+| Correlation id | Header `X-Correlation-Id`. Precedence: valid inbound header, then the active trace id so logs and traces join on one value, then a fresh random 128 bit id. |
 | Trace context  | W3C `traceparent`, propagated on every hop, spans on inbound and outbound |
 | Log format     | JSON, one line per event                                                  |
 | Log fields     | `ts`, `level`, `msg`, `component`, `method`, `line`, `correlationId`, `traceId`, `spanId` |
@@ -233,8 +238,14 @@ Never logged: the `api-key` value, bearer tokens, cookie values. The key is logg
 Logged: `loanAmount`, `loanTermInMonths`, `riskBand`. Business data, not PII, per `assumptions.md`
 2.2.
 
+An inbound `X-Correlation-Id` is attacker controlled, so it is accepted only when it matches
+`[A-Za-z0-9._-]{1,64}`. A value outside that is discarded and replaced, not trimmed: a truncated id
+would silently break the join across services. This keeps hostile content out of log lines and out of
+the response header.
+
 No collector is deployed. `OTEL_EXPORTER_OTLP_ENDPOINT` unset means spans are created and propagated
-but not exported.
+but not exported. When it is set, it is validated at startup, because the OTLP exporter otherwise
+accepts a malformed endpoint and silently drops every trace.
 
 ## 9. Configuration
 
