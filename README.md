@@ -67,6 +67,21 @@ for the vendor and is deleted when the real one arrives.
 Directory names use a hyphen where they become an artifact, a binary, an image or a compose service.
 Go package names cannot, so `cmd/cqapp-bff` pairs with `internal/cqappbff`.
 
+## Design, Assumptions & Approach
+
+The document [assumptions.md](design/assumptions.md) brings assumptions and design decisions applied to this project.
+
+This work follows an AI first approach, and for transparency I break the work into separate tasks,
+with a dedicated commit for the AI planned work and one commit for the finished task.
+
+The task register is at [tasks/register.md](tasks/register.md). Each task has a `code`, and the PRs
+that address those tasks quote the `code` at the beginning of the title.
+
+The AI tool utilised is Anthropic Claude Code. I have great familiarity with the tool which I use
+both personally and professionally.
+
+A full account of how AI was used lands with CQ-08.
+
 ## Getting started
 
 Requires Go 1.26. No other tooling; `golangci-lint` is used if installed and skipped if not.
@@ -165,18 +180,3 @@ Development only tools carry a `dev-` prefix.
 | `build` | Build every service into `bin/` |
 | `test`, `cover`, `vet`, `lint`, `check` | See above |
 | `fmt`, `tidy`, `clean` | Housekeeping |
-
-## Design, Assumptions & Approach
-
-The document [assumptions.md](design/assumptions.md) brings assumptions and design decisions applied to this project.
-
-This work follows an AI first approach, and for transparency I break the work into separate tasks,
-with a dedicated commit for the AI planned work and one commit for the finished task.
-
-The task register is at [tasks/register.md](tasks/register.md). Each task has a `code`, and the PRs
-that address those tasks quote the `code` at the beginning of the title.
-
-The AI tool utilised is Anthropic Claude Code. I have great familiarity with the tool which I use
-both personally and professionally.
-
-A full account of how AI was used lands with CQ-08.
