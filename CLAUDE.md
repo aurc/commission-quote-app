@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - **Never merge a PR.** The repo owner reviews and merges in GitHub. Open PRs, never merge them.
 - **Never push to `main`.** Work happens on `cq-0N-<slug>` branches.
+- **Pause after the plan.** Commit the task plan, then stop and let the owner review it before
+  writing any implementation. Do not run the plan commit and the implementation in one go.
 - Prose style in docs and replies: concise, tables over paragraphs, no em dashes.
 
 ## Current state
@@ -83,8 +85,9 @@ Reviewer run path is `docker compose up`. Makefile targets exist for native dev.
 Per task, per `README.md`:
 
 1. Branch `cq-0N-<slug>`.
-2. Commit 1: the planned work. Plan at `tasks/CQ-0N/plan.md`, register entry set to `in progress`.
-3. Commit 2: the finished implementation and its tests, register entry set to `done`.
-4. Open a PR titled `CQ-0N - <title>`. Do not merge it.
+2. Commit 1: the planned work. Plan at `tasks/CQ-0N/plan.md`, register entry set to `wip`.
+3. **Stop here.** The owner reviews the plan before implementation starts.
+4. Commit 2: the finished implementation and its tests, register entry set to `done`.
+5. Open a PR titled `CQ-0N - <title>`. Do not merge it.
 
 `README.md` must end up with an AI usage transparency section, required by the brief.
