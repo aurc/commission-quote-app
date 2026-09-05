@@ -548,7 +548,7 @@ The brief specifies parts of the UI literally, so they are pinned here rather th
 | Success | A display area showing `quoteId`, `commissionRate` and `totalCommission` |
 | In flight | A visible loading state; the submit control is disabled while a request is open |
 | Failure | The `message` from the BFF's error envelope, shown as an error, with `correlationId` available |
-| On success | The form collapses to the values it was submitted with, and the result takes the top of the page |
+| On success | The form collapses in place to the values it was submitted with; the result appears below it |
 | Field errors | `details` mapped back to the field that failed, shown inline |
 
 Presentation: `commissionRate` is shown as a percentage to two decimal places (`0.0180` renders as
@@ -588,11 +588,17 @@ poor signal. `--cq-danger` is the deeper `#b20838`, which also measures better, 
 not just a red border. A red forward brand makes this more important, not less, because the palette
 offers less contrast between "act here" and "this is wrong" than a blue one would.
 
-**The form collapses once submitted.** A full form above the result pushes the answer off a phone
-screen, and the form's work is done at submit. It becomes the values it was sent with, which the
-result needs regardless: a quote cannot be checked without its inputs, and after an edit there would
-be no way to tell which numbers produced the figure on screen. Edit reopens it. One behaviour at both
-breakpoints, not a mobile special case.
+**The form collapses in place once submitted.** A full form above the result pushes the answer off a
+phone screen, and the form's work is done at submit, so it shrinks from around 560px to around 165px
+and the result sits above the fold.
+
+It collapses where it is. Moving it below the result would free the same space, but the panel would
+change position between states and the page would read as rearranging itself under the user. Order
+stays fixed; only height changes.
+
+It collapses to the values it was sent with, which the result needs regardless: a quote cannot be
+checked without its inputs, and after an edit there would be no way to tell which numbers produced
+the figure on screen. Edit reopens it. One behaviour at both breakpoints, not a mobile special case.
 
 Validation in the FE mirrors section 4 for immediate feedback and is never trusted. The Middleware
 rejects independently, and the FE renders whatever it sends back.

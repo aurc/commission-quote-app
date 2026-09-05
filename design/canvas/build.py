@@ -204,10 +204,12 @@ INVALID_ERRORS = {'amount': "Enter an amount between $1,000.00 and $5,000,000.00
 
 
 def result_panel(s):
-    """The answer, at the top of the page.
+    """The answer.
 
-    White, because it is now the primary surface: the page ground is the tint,
-    so a tinted panel would barely separate from it.
+    White, because it is the primary surface once it exists: the page ground is
+    the tint, so a tinted panel would barely separate from it. The collapsed
+    form above takes the tint instead, which also puts the quieter card behind
+    the louder one in the reading order.
     """
     return f'''      <div style="background: #ffffff; border: 1px solid #dee2e6; border-radius: 8px; padding: {s.card_pad};">
         <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 18px;">
@@ -237,11 +239,15 @@ def result_panel(s):
 def collapsed_form(s, staff):
     """What was asked, once the answer is on screen.
 
-    The form's job is done when it is submitted, and a full form above the
-    result pushes the answer off a phone screen. It collapses to the values it
-    was submitted with, which the result needs anyway: a quote without its
-    inputs cannot be checked, and after an edit you could not tell which numbers
-    produced it.
+    The form collapses in PLACE. It keeps its position at the top and shrinks
+    from around 560px to around 165px, which is what lifts the result above the
+    fold on a phone. Moving the form below the result would achieve the same
+    thing and make the panel jump position between states, which reads as the
+    page rearranging itself under the user.
+
+    It collapses to the values it was submitted with, which the result needs
+    anyway: a quote cannot be checked without its inputs, and after an edit
+    there would be no way to tell which numbers produced the figure on screen.
     """
     name = (f'''        <div style="font-size: 13px; color: #68696b; margin-bottom: 10px;">Signed in as <span style="color: #212529; font-weight: 500;">{staff}</span></div>'''
             if not s.bar_name else '')
@@ -329,8 +335,8 @@ def build(mobile):
         'QuoteForm': page(s, form(s, STAFF), staff=STAFF, width=w),
         'QuoteInvalid': page(s, invalid, staff=STAFF, width=w),
         'QuoteSubmitting': page(s, form(s, STAFF, submitting=True), staff=STAFF, width=w),
-        # The answer first, then what was asked. See collapsed_form.
-        'Result': page(s, result_panel(s) + '\n' + collapsed_form(s, STAFF), staff=STAFF, width=w),
+        # The form collapses in place. It does not move: see collapsed_form.
+        'Result': page(s, collapsed_form(s, STAFF) + '\n' + result_panel(s), staff=STAFF, width=w),
         'NotEntitled': page(s, not_entitled(s), staff="Sam Ellis", width=w),
         'Unavailable': page(s, form(s, STAFF) + '\n' + unavailable(s), staff=STAFF, width=w),
     }

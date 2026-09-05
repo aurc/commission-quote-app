@@ -142,11 +142,11 @@
       "text": "Phones, 390 wide.\n\nThree things change and nothing else does: the result panel stacks to one column, padding tightens, and the top bar drops the staff name because it has room for the wordmark and one control, and Sign out is the one you cannot reach any other way. The name moves into the form instead, so who you are signed in as is still on screen.\n\nCQ-07 implements this as one responsive stylesheet, not two layouts. These artboards are the narrow end of the same design.\n\nControls stay 44px or taller, which is the reason the field height was set there on the desk too."
     },
     {
-      "id": "result-first",
+      "id": "collapse-in-place",
       "x": 1880,
       "y": 4300,
       "w": 320,
-      "text": "The form collapses once it has been submitted.\n\nA full form above the result pushed the answer off a phone screen entirely. The form's job is done at submit, so it collapses to the values it was sent with, and the result takes the top.\n\nThose values are not decoration. A quote cannot be checked without the inputs it came from, and after an edit you could not tell which numbers produced the figure on screen.\n\nSame behaviour on both breakpoints, so this stays one design rather than a mobile special case. Edit reopens the form.\n\nThe phone artboard is 390x844, a real viewport, so the frame shows whether the answer fits without scrolling."
+      "text": "The form collapses in place once submitted.\n\nIt keeps its position and shrinks from about 560px to about 165px, which is what lifts the result above the fold on a phone.\n\nMoving the form below the result would free the same space, but the panel would jump position between states and the page would read as rearranging itself under the user. Order stays fixed; only height changes.\n\nIt collapses to the values it was sent with. Those are not decoration: a quote cannot be checked without its inputs, and after an edit there would be no way to tell which numbers produced the figure on screen. Edit reopens the form.\n\nSame behaviour at both breakpoints. The phone artboard is 390x844, a real viewport, so the frame shows whether the answer fits without scrolling."
     }
   ],
   "launch": {

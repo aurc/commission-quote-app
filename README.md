@@ -4,7 +4,7 @@ Full-stack take-home: a web app that captures loan details and returns a commiss
 mocked external vendor API.
 
 <p align="center">
-  <img src="design/screenshots/quote-result.png" alt="The result: a 1.80% commission rate and a total of $4,500.00, with the form collapsed below to the values it was submitted with" width="760">
+  <img src="design/screenshots/quote-result.png" alt="The result: a 1.80% commission rate and a total of $4,500.00, below the form collapsed in place to the values it was submitted with" width="760">
 </p>
 
 <p align="center">

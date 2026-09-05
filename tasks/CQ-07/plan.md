@@ -115,7 +115,7 @@ run the two independently.
 | Validation | Every rule and boundary in `contract.md` section 4, inside and outside |
 | Drift | The published contract's bounds match `validation.ts` |
 | States | Idle, loading, result and error each render, and only one at a time |
-| Collapse | Submitting collapses the form to its submitted values; Edit reopens it with them intact |
+| Collapse | Submitting collapses the form in place, above the result and never below it; Edit reopens it with the values intact |
 | Field errors | `details` map to the right fields; an unknown code still shows something |
 | Formatting | `0.0180` renders `1.80%`, `4500` renders as AUD, and neither is recomputed |
 | Session | Restored on load; a `401` returns to sign in |
